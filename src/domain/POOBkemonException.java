@@ -1,5 +1,16 @@
 package domain;
 
+/**
+ * POOBkemonException is a custom exception class designed to handle specific errors
+ * that may occur in the context of the POOBkemon application. This class extends the
+ * standard Exception class and provides predefined error messages to categorize
+ * common issues that might arise during the application's execution.
+ *
+ * The predefined error messages cover scenarios such as incomplete data inputs,
+ * invalid data formats, missing trainer or Pokémon data, issues related to items,
+ * attempts to perform invalid actions (e.g., using a fainted Pokémon), and errors
+ * involving unrecognized Pokémon identifiers.
+ */
 public class POOBkemonException extends Exception {
     public static final String INCOMPLETE_DATA = "Información incompleta para inicializar el juego.";
     public static final String INVALID_FORMAT = "Formato inválido en los datos del juego.";

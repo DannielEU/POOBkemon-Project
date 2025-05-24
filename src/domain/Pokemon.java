@@ -9,8 +9,9 @@ import java.util.Random;
 import java.util.ArrayList;
 
 /**
- * Represents a Pokemon creature with all its attributes and battle capabilities.
- * This class handles Pokemon creation, stats calculation, and battle mechanics.
+ * The Pokemon class represents a Pokemon entity with various attributes and methods
+ * for managing its states, statistics, and interactions during battles.
+ * It includes support for customization, random stat generation, attacks, and status effects.
  */
 public class Pokemon implements Serializable {
 
@@ -268,6 +269,10 @@ public class Pokemon implements Serializable {
 		return attacks;
 	}
 
+	/**
+	 * genera los siguientes Id
+	 * @return
+	 */
 	private int nextAttackId() {
 		return ++this.attackId;
 	}
@@ -298,6 +303,13 @@ public class Pokemon implements Serializable {
 		return attacker.currentHealth > 0 && this.currentHealth > 0;
 	}
 
+	/**
+	 * Handles a state attack and applies corresponding effects if the state is applicable.
+	 *
+	 * @param stateAttack The state attack to be executed.
+	 * @param attacker The Pokemon executing the state attack.
+	 * @return A message describing the result of the state attack. Returns an empty string if there is no effect.
+	 */
 	private String handleStateAttack(StateAttack stateAttack, Pokemon attacker) {
 		if (!doesStateApply(stateAttack)) {
 			return attacker.name + " falló el ataque de estado! ";
@@ -312,12 +324,25 @@ public class Pokemon implements Serializable {
 		return "";
 	}
 
+	/**
+	 * Determines whether a state attack's effect applies based on its accuracy.
+	 *
+	 * @param stateAttack The state attack being evaluated for application.
+	 * @return true if the*/
 	private boolean doesStateApply(StateAttack stateAttack) {
 		if(stateAttack.getAccuracy()==100){return true;}
 		double prob = Math.random() * 100;
 		return prob < stateAttack.getAccuracy();
 	}
 
+	/**
+	 * Applies a status effect to a target Pokemon based on the provided status information and state attack.
+	 *
+	 * @param info An array containing the status information to be applied.
+	 * @param stateAttack The state attack to be applied to the Pokemon.
+	 * @param attacker The Pokemon initiating the state attack.
+	 * @return A string describing the outcome of the status application. Returns an empty string if an invalid status type is provided or if no effect is applied.
+	 */
 	private String applyStatusFromInfo(String[] info, StateAttack stateAttack, Pokemon attacker) {
 		try {
 			Pokemon target = stateAttack.affectsSelf() ? attacker : this;
@@ -336,6 +361,17 @@ public class Pokemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Handles the execution of a regular attack, calculates damage dealt, and updates the states of
+	 * both the attacking and defending Pokemon. It also evaluates type effectiveness, attack accuracy,
+	 * and updates the attacker's Power Points (PP).
+	 *
+	 * @param damage The attack object specifying the details of the attack being executed.
+	 * @param attacker The Pokemon executing the attack.
+	 * @return A string describing the result of the attack, including effectiveness, damage dealt, or
+	 *         whether the attack failed.
+	 * @throws POOBkemonException If an error occurs while handling the attack.
+	 */
 	private String handleRegularAttack(Attack damage, Pokemon attacker) throws POOBkemonException {
 		MovesRepository movesRepository = new MovesRepository();
 		StatsRepository statsRepository = new StatsRepository();
@@ -362,6 +398,19 @@ public class Pokemon implements Serializable {
 				" [" + damage.getName() + "] causó " + (int)calculatedDamage + " puntos de daño!";
 	}
 
+	/**
+	 * Returns a message describing the effectiveness of damage based on
+	 * the provided type effectiveness multiplier.
+	 *
+	 * @param multiplicator The type effectiveness multiplier of the attack.
+	 *                      For example, 2.0 indicates the attack is super effective,
+	 *                      0.5 indicates it is not very effective, and other values
+	 *                      indicate neutral effectiveness.
+	 * @return A string message indicating the effectiveness of the attack.
+	 *         Returns " ¡Fue super efectivo! \n" if the multiplier is 2.0,
+	 *         " No fue muy efectivo... \n" if it is 0.5, and an empty string
+	 *         for other multiplier values.
+	 */
 	private String getDamageEffectivenessMessage(double multiplicator) {
 		if (multiplicator == 2.0) {
 			return " ¡Fue super efectivo! \n";
@@ -371,6 +420,11 @@ public class Pokemon implements Serializable {
 		return "";
 	}
 
+	/**
+	 * Determines if the entity is in a weak state based on its current health.
+	 * If the current health is less than or equal to zero, the health is set to zero
+	 * and the entity is marked as weak.
+	 */
 	public void isWeak(){
 		if (this.currentHealth <= 0) {
 			this.currentHealth = 0;
@@ -424,6 +478,12 @@ public class Pokemon implements Serializable {
 		return Math.max(1, Math.round(damageValue));
 	}
 
+	/**
+	 * Manages the application of persistent damage effects to a target Pokémon based on the given attack state.
+	 *
+	 * @param attackStateRival The state of the attack or condition being applied by the rival Pokémon.
+	 * @param target The target Pokémon on which the damage or condition is being applied.
+	 */
 	public void persistentDamage(State attackStateRival, Pokemon target) {
 		if (shouldBecomePrincipalState(attackStateRival, target)) {
 			setAsPrincipalState(attackStateRival, target);
@@ -432,30 +492,70 @@ public class Pokemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Determines if the given state should become the principal state based on the target conditions.
+	 *
+	 * @param state the current state to evaluate
+	 * @param target the target object to assess for principal state eligibility
+	 * @return true if the target's principal is null and the state is a principal state, otherwise false
+	 */
 	private boolean shouldBecomePrincipalState(State state, Pokemon target) {
 		return target.principalIsNull() && state.isPrincipal();
 	}
 
+	/**
+	 * Checks if the principalState is null.
+	 *
+	 * @return true if the principalState is null, false otherwise
+	 */
 	private boolean principalIsNull(){
 		return this.principalState == null;
 	}
 
+	/**
+	 * Sets the provided state as the principal state for the given target Pokemon.
+	 *
+	 * @param state the state to be set as the principal state
+	 * @param target the Pokemon object on which the state will be set
+	 */
 	private void setAsPrincipalState(State state, Pokemon target) {
 		target.addPrincipalState(state);
 	}
 
+	/**
+	 * Determines if the given state should be added as a secondary state.
+	 *
+	 * @param state the state to be evaluated
+	 * @return true if the state is not a principal state, false otherwise
+	 */
 	private boolean shouldBeAddedAsSecondaryState(State state) {
 		return !state.isPrincipal();
 	}
 
+	/**
+	 * Adds the given state as a secondary state to the specified target.
+	 *
+	 * @param state  the secondary state to be added
+	 * @param target the Pokemon to which the secondary state will be applied
+	 */
 	private void addAsSecondaryState(State state,Pokemon target) {
 		target.addSecundariState(state);
 	}
 
+	/**
+	 * Adds a secondary state to the collection of states.
+	 *
+	 * @param state the State object to be added to the collection
+	 */
 	public void addSecundariState(State state){
 		this.states.add(state);
 	}
 
+	/**
+	 * Sets the principal state of the object to the specified state.
+	 *
+	 * @param state the State object to be set as the principal state
+	 */
 	public void addPrincipalState(State state) {
 		this.principalState = state;
 	}
@@ -583,7 +683,12 @@ public class Pokemon implements Serializable {
 	}
 
 
-
+	/**
+	 * Applies damage to the entity by reducing its current health. If the health reaches or falls below zero,
+	 * sets the current health to zero and marks the entity as weak.
+	 *
+	 * @param damage The amount of damage to subtract from the entity's current health.
+	 */
 	public void takeDamage( int damage ) {
 		this.currentHealth -= damage;
 		if(this.currentHealth <= 0) {
@@ -608,6 +713,12 @@ public class Pokemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Determines whether a state with the specified name exists in the collection of states.
+	 *
+	 * @param stateName the name of the state to check for. It is case-insensitive.
+	 * @return true if a state with the specified name exists, otherwise false.
+	 */
 	public boolean hasState(String stateName) {
 		for (State s : states) {
 			if (s.getName().equalsIgnoreCase(stateName)) {
@@ -617,6 +728,11 @@ public class Pokemon implements Serializable {
 		return false;
 	}
 
+	/**
+	 * Sets the protected status of an object.
+	 *
+	 * @param protect a boolean value indicating whether the object should be protected (true) or not (false)
+	 */
 	public void setProtected(boolean protect){
 		this.isProtected = protect;
 	}
@@ -636,6 +752,14 @@ public class Pokemon implements Serializable {
 		this.canAttack = active;
 	}
 
+	/**
+	 * Modifies the specified stat of the object by a given multiplicator.
+	 *
+	 * @param stat the name of the stat to modify.
+	 *             Accepted values are "attack", "defense", "speed",
+	 *             "SP_defense", "SP_attack", "Critico", and "evasion".
+	 * @param multiplicator the factor by which the specified stat will be multiplied.
+	 */
 	public void modifyStat(String stat, double multiplicator){
 		switch (stat){
 			case "attack":
@@ -661,7 +785,16 @@ public class Pokemon implements Serializable {
 				break;
 		}
 	}
-	
+
+	/**
+	 * Disables the last move in the attacks list by setting its current PP to 0.
+	 * This method accesses the last element in the attacks list,
+	 * retrieves it, and modifies its PP (Power Points) value to indicate
+	 * it can no longer be used.
+	 *
+	 * Assumes that the `attacks` list is non-empty when this method is called.
+	 * If the list is empty, this may result in an IndexOutOfBoundsException.
+	 */
 	public void disableLastMove(){
 		this.attacks.get(this.attacks.size()-1).setPPActual(0);
 	}
@@ -680,7 +813,19 @@ public class Pokemon implements Serializable {
 	private boolean activeState(){
 		return (true);
 	}
-	//aplicar daño
+
+	/**
+	 * Applies the current state logic to the object.
+	 *
+	 * This method evaluates and applies effects based on the principal state and
+	 * additionally iterates through all secondary states, applying their respective effects.
+	 * It performs the following operations:
+	 * 1. Checks if a principal state exists and is active. If so, it applies the
+	 *    corresponding effect.
+	 * 2. Clears the principal state if its duration has ended.
+	 * 3. Cleans up states by invoking the `statesDelete` method.
+	 * 4. Applies the effect of each state in the collection of states.
+	 */
 	public void applyState(){
 		if(!(this.principalState == null) && this.activeState()) {
 			this.principalState.applyEffect(this);
@@ -693,12 +838,29 @@ public class Pokemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Deletes the provided state. If the provided state is the current principal state,
+	 * it nullifies the principal state.
+	 *
+	 * @param state the state to be deleted
+	 */
 	public void deleteState(State state){
 		if(this.principalState == state){
 			principalState = null;
 		}
 	}
 
+	/**
+	 * Removes states from the list whose duration is zero.
+	 *
+	 * This method iterates through the list of states and deletes any state
+	 * where the duration equals zero. The iteration continues until all
+	 * elements of the list are checked. If a state is removed during
+	 * iteration, the loop does not increment the counter to re-check the
+	 * shifted element at the current index. If no state meets the removal
+	 * criteria, all the states are retained, and the method completes without
+	 * making changes to the list.
+	 */
 	private void statesDelete(){
 		int stateCount = 0;
 		while(stateCount < this.states.size()){

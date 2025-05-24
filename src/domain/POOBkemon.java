@@ -10,6 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Clase principal que representa el juego POOBkemon.
+ * La clase administra toda la lógica y los aspectos fundamentales del juego,
+ * incluyendo la creación de entrenadores, Pokémon, manejo de batallas, y control general.
+ * Utiliza un patrón Singleton para garantizar que solo exista una única instancia del juego.
+ */
 public class POOBkemon implements Serializable {
 
 	protected ArrayList<String> moves;
@@ -109,6 +115,9 @@ public class POOBkemon implements Serializable {
 			throw new POOBkemonException(POOBkemonException.INVALID_FORMAT + ": " + e.getMessage());
 		}
 	}
+	/**
+	 * Elimina el juego actual.
+	 */
 	public void deleteGame(){
 		this.game = null;
 		this.trainerId = 0;
@@ -121,6 +130,9 @@ public class POOBkemon implements Serializable {
 		this.finishBattle = false;
 		this.winner = -1;
 	}
+	/*
+	* generador de Ids para los pokemons
+	 */
 	protected void nextIdPokemon(){
 		this.nid = this.nid + 1;
 	}
@@ -160,13 +172,19 @@ public class POOBkemon implements Serializable {
 
 
 	/**
-	 * crear la maleta
+	 * Crea una maleta para el entrenador
+	 * @return bagPack Mochila del entrenador
+	 * @return ArrayList<Item>
 	 */
 	private BagPack createBagPack(ArrayList<Item> items) {
 		BagPack bagPack = new BagPack(items);
 		return bagPack;
 	}
-
+	/*
+	* metodo para crear los items
+	* @return ArrayList<Item>
+	* @param items
+	 */
 	private ArrayList<Item> createItems(String[][] items) {
 		ArrayList<Item> item = new ArrayList<Item>();
 		Potion ite = null;
@@ -186,6 +204,8 @@ public class POOBkemon implements Serializable {
 
 	/**
 	 * crear los Pokemons
+	 * @param pokemonIds Lista de IDs de Pokémon
+	 *
 	 */
 	public ArrayList<Pokemon> createPokemons(ArrayList<Integer> pokemonIds, ArrayList<Integer> attackIds) throws POOBkemonException {
 		ArrayList<Pokemon> pokemons = new ArrayList<>();
@@ -259,7 +279,11 @@ public class POOBkemon implements Serializable {
 		}
 		return turnOrder;
 	}
-	//llama a los entrenadores maquina para que tomen una desicion
+	/**
+	*metodo para obtener las decisiones de la maquina
+	* @param idTrainer id del entrenador
+	* @return String[]
+	 **/
 	public String[] machineDecision(int idTrainer) throws POOBkemonException {
 		for (Team t : teams) {
 			if (idTrainer == t.getTrainer().getId()) {
@@ -356,6 +380,12 @@ public class POOBkemon implements Serializable {
 			checkBattleStatus();
 		}
 	}
+
+	/**
+	 * Verifica si el entrenador es una máquina.
+	 * @param TrainerId
+	 * @return
+	 */
 	public boolean isMachine(int TrainerId){
 
 		for (Team t : teams) {
@@ -382,6 +412,10 @@ public class POOBkemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Busca el ganador de la batalla.
+	 * @param team
+	 */
 	private void searchWinner(Team team){
 		if(this.winner != -1)return;
 		for (Team t : teams) {
@@ -549,7 +583,11 @@ public class POOBkemon implements Serializable {
 		// Cambio automático si es necesario
 		this.autoChangePokemon();
 	}
-	//Para cuando est debilitado el pokemon activo haga un cambio automatico
+
+	/**
+	 * Metodo que cambia el pokemon activo si es necesario.
+	 * @throws POOBkemonException
+	 */
 	private void autoChangePokemon() throws POOBkemonException{
 		if(this.finishBattle)return;
 			for (Team team : teams) {
@@ -566,7 +604,12 @@ public class POOBkemon implements Serializable {
 				}
 			}
 	}
-	//Metodo que busca un pokemon en todos los equipos (No lo uso siempre porque es más ineficiente)
+
+	/**
+	 * Busca un Pokemon en el equipo de un entrenador.
+	 * @param id
+	 * @return
+	 */
 	private Pokemon searchPokemon(int id){
 		try {
 			for (Team team : teams) {
@@ -581,7 +624,12 @@ public class POOBkemon implements Serializable {
 			return null;
 		}
 	}
-	//para el cambio automatico que encuentre un pokemon Valido
+
+	/**
+	 * Obtiene el ID del Pokemon activo que no sea muy dificil.
+	 * @param trainerId
+	 * @return
+	 */
 	private int getAlivePokemon(int trainerId){
 		if(this.finishBattle)return -1;
 		int id = -1;
@@ -640,6 +688,11 @@ public class POOBkemon implements Serializable {
 		return pokemons;
 	}
 
+	/**
+	 * Obtiene los IDs de los Pokémon inactivos de un entrenador.
+	 * @param idTrainer
+	 * @return
+	 */
 	public int[] getPokemonsInactive(int idTrainer) {
 		if(this.finishBattle)return null;
 		for (Team t : teams) {
@@ -662,6 +715,12 @@ public class POOBkemon implements Serializable {
 		}
 		return new int[0]; // Si no se encuentra el entrenador
 	}
+
+	/**
+	 * Obtiene los IDs de los Pokémon activos de un entrenador.
+	 * @param idTrainer
+	 * @return
+	 */
 	public int[] getPokemonsPerTrainer(int idTrainer) {
 		if(this.finishBattle)return null;
 		for (Team t : teams) {
@@ -704,6 +763,11 @@ public class POOBkemon implements Serializable {
 		if(infoPokemon == null) throw new POOBkemonException("Entrenador con ID " + idTrainer + " no encontrado");
 		return infoPokemon;
 	}
+
+	/**
+	 * Obtiene la información de un Pokémon específico de un entrenador.
+	 * @return HasMap
+	 */
 	public HashMap<Integer, String[][]> getActiveAttacks(){
 		if(this.finishBattle)return null;
 		HashMap<Integer, String[][]> pokemons = new HashMap<>();
@@ -747,6 +811,13 @@ public class POOBkemon implements Serializable {
 		String info = new MovesRepository().getAttackId(id);
 		return info;
 	}
+
+	/**
+	 * Obtiene información de todos los ataques disponibles.
+	 * @param trainerId
+	 * @return
+	 * @throws POOBkemonException
+	 */
 	public String[][] getInfoItems(int trainerId) throws POOBkemonException {
 		Trainer trainer = null;
 		for (Team t: this.teams){
@@ -757,6 +828,12 @@ public class POOBkemon implements Serializable {
 		if(trainer == null) throw new POOBkemonException("Entrenador no encontrado");
 		return trainer.getBagPack().getItems();
 	}
+
+	/**
+	 * Guarda la batalla en un archivo.
+	 * @param archivo
+	 * @throws POOBkemonException
+	 */
 	public void save(File archivo) throws POOBkemonException {
 		try (ObjectOutputStream writer = new ObjectOutputStream(
 				new BufferedOutputStream(new FileOutputStream(archivo)))) {
@@ -768,6 +845,12 @@ public class POOBkemon implements Serializable {
 		}
 	}
 
+	/**
+	 * Carga una batalla de un archivo.
+	 * @param archivo
+	 * @return
+	 * @throws POOBkemonException
+	 */
 	public static POOBkemon open(File archivo) throws POOBkemonException {
 		try (ObjectInputStream reader = new ObjectInputStream(
 				new BufferedInputStream(new FileInputStream(archivo)))) {
@@ -781,20 +864,46 @@ public class POOBkemon implements Serializable {
 			throw new POOBkemonException("Error de E/S al abrir la batalla: " + e.getMessage());
 		}
 	}
+
+	/**
+	 * Agrega un movimiento a la lista de movimientos.
+	 * @param move
+	 */
 	public void addMove(String move){
 		this.moves.add(move);
 	}
+
+	/**
+	 * Cambia el estado de la batalla.
+	 * @param ok
+	 */
 	public void setOk(boolean ok){
 		this.ok = ok;
 	}
+
+	/**
+	 * Obtiene todos los ataques compatibles con un Pokémon.
+	 * @param pokemonId
+	 * @return
+	 */
 	public ArrayList<String[]> getCompatibleAttacks(int pokemonId) {
 		ArrayList<String[]> compatibleAttacks = new MovesRepository().getCompatibleAttacks(pokemonId);
 		return compatibleAttacks;
 	}
+
+	/**
+	 * Obtiene el nombre de un ataque.
+	 * @param id
+	 * @return
+	 */
 	public String getAttackId(int id) {
 		String move = new MovesRepository().getAttackId(id);
 		return move;
 	}
+
+	/**
+	 * Aplica los efectos de los Pokémon en la batalla.
+	 */
 	private void applyStates(){
 		for (Team team : teams) {
 			team.applyEffect();
