@@ -291,7 +291,6 @@ public class Pokemon implements Serializable {
 		} else {
 			message = handleRegularAttack(damage, attacker);
 		}
-		message = insertLineBreaks(message, 10);
 		return message;
 	}
 
@@ -488,21 +487,6 @@ public class Pokemon implements Serializable {
 		};
 	}
 
-	private String insertLineBreaks(String text, int maxLineLength) {
-		StringBuilder result = new StringBuilder();
-		int lastBreak = 0;
-
-		while (lastBreak + maxLineLength < text.length()) {
-			int breakIndex = text.lastIndexOf(" ", lastBreak + maxLineLength);
-			if (breakIndex == -1) break; // No hay más espacios, salimos
-
-			result.append(text, lastBreak, breakIndex).append("\n");
-			lastBreak = breakIndex + 1; // continuar desde después del espacio
-		}
-		result.append(text.substring(lastBreak)); // agregar el resto
-
-		return result.toString();
-	}
 
 	/**
 	 * Obtiene la información de todos los ataques del Pokémon.

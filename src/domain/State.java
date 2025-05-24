@@ -98,7 +98,11 @@ public class State implements Serializable {
         OCTOLOCK,      // Reduce defensa y evasión cada turno
         FIRE_WEAK,
 
-        REDIRECT
+        REDIRECT,
+        COPY_ABILITY,
+        FORCE_SWITCH,
+        COPY_MOVE,
+        RANDOM_MOVE
     }
 
     private StateType type;
