@@ -7,7 +7,11 @@ import java.io.Serializable;
  * Maneja efectos persistentes, duración, y aplicación de daño/efectos cada turno.
  */
 public class State implements Serializable {
-
+    /**
+     * Enum that represents various state types in the context of Pokémon-related mechanics.
+     * These states encompass a variety of conditions, ranging from status effects, stat modifications,
+     * healing effects, to field-related and unique mechanics.
+     */
     public enum StateType {
         // Estados de daño/condición negativa
         PARALYSIS,      // Paraliza reduciendo velocidad y puede impedir ataque
@@ -139,7 +143,14 @@ public class State implements Serializable {
     }
 
     /**
-     * Calcula el daño base según el tipo de estado
+     * Calculates the base damage value based on the type of the current state.
+     * This method determines a fixed damage value associated with specific state
+     * types like BURN, POISON, or BAD_POISON.
+     *
+     * @return the base damage as an integer, where:
+     * - 1 for BURN and POISON states
+     * - 1 for BAD_POISON state (incremental effects are adjusted elsewhere)
+     * - 0 for other states
      */
     private int calculateBaseDamage() {
         switch (this.type) {
@@ -330,6 +341,15 @@ public class State implements Serializable {
         return effectMessage.toString();
     }
 
+    /**
+     * Checks if the current state should heal or terminate its effect on the given Pokémon.
+     * If the duration of the state reaches zero, the state will be removed from the Pokémon,
+     * and the method returns true. Otherwise, it returns false.
+     *
+     * @param state The current state object being evaluated.
+     * @param pokemon The Pokémon affected by the state.
+     * @return true if the state has healed or finished its effect, false otherwise.
+     */
     private boolean isHeal(State state, Pokemon pokemon){
         if (state.duration > 0) {
             duration--;
@@ -341,7 +361,14 @@ public class State implements Serializable {
         return false;
     }
 
-    // Métodos auxiliares para cada efecto
+    /**
+     * Applies the burn effect to the specified Pokémon by dealing damage equivalent
+     * to one-eighth of its maximum health and reducing its physical attack power by 50%.
+     * Appends a message describing the damage caused by the burn effect.
+     *
+     * @param pokemon The Pokémon to which the burn effect is applied.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyBurnEffect(Pokemon pokemon, StringBuilder message) {
         damage = pokemon.maxHealth / 8;
         if (damage == 0) {damage = 1;}
@@ -350,6 +377,14 @@ public class State implements Serializable {
         message.append(pokemon.getName()).append(" sufre ").append(damage).append(" de daño por quemadura!");
     }
 
+    /**
+     * Applies the poison effect to the specified Pokémon.
+     * The effect deals damage equivalent to one-eighth of the Pokémon's maximum health,
+     * with a minimum of 1 damage. A descriptive message is appended indicating the damage dealt.
+     *
+     * @param pokemon The Pokémon affected by the poison effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyPoisonEffect(Pokemon pokemon, StringBuilder message) {
         this.damage = pokemon.maxHealth / 8;
         if(damage <= 0){ damage = 1;}
@@ -357,6 +392,15 @@ public class State implements Serializable {
         message.append(pokemon.getName()).append(" sufre ").append(damage).append(" de daño por veneno!");
     }
 
+    /**
+     * Applies the "bad poison" effect to the specified Pokémon. This effect deals
+     * incremental damage based on the Pokémon's maximum health, with a minimum of 1 damage.
+     * The damage increases with each subsequent application of the effect.
+     * Additionally, the effect appends a descriptive message indicating the damage dealt.
+     *
+     * @param pokemon The Pokémon affected by the bad poison effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyBadPoisonEffect(Pokemon pokemon, StringBuilder message) {
         damage = (pokemon.maxHealth / 25);
         if(damage <= 0){ damage = 1;}
@@ -368,6 +412,9 @@ public class State implements Serializable {
                 .append(" de daño \npor envenenamiento grave (").append(intensity).append("x)!");
     }
 
+    /**
+     *
+     */
     private void applyParalysisEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.reduceSpeed(50); // Reduce velocidad en 50%
         if (Math.random() < 0.25) {
@@ -378,6 +425,14 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the sleep effect to the specified Pokémon. The effect disables the Pokémon's ability
+     * to attack until it wakes up. Each turn, the Pokémon has a 20% chance to wake up, allowing
+     * it to resume attacking.
+     *
+     * @param pokemon The Pokémon affected by the sleep effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applySleepEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setCanAttack(false);
         message.append(pokemon.getName()).append(" está dormido.");
@@ -390,11 +445,27 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the flinch effect to the specified Pokémon, preventing it from attacking
+     * during the current turn. A descriptive message indicating the effect is appended
+     * to the provided StringBuilder.
+     *
+     * @param pokemon The Pokémon affected by the flinch effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyFlinchEffect(Pokemon pokemon, StringBuilder message){
         pokemon.setCanAttack(false);
         message.append(pokemon.getName()).append(" no ataca este turno.");      
     }
 
+    /**
+     * Applies the freeze effect to the specified Pokémon, preventing it from attacking.
+     * There is a 20% chance that the Pokémon will thaw out and be able to attack again.
+     * A descriptive message indicating the effect is appended to the provided StringBuilder.
+     *
+     * @param pokemon The Pokémon affected by the freeze effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyFreezeEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setCanAttack(false);
         message.append(pokemon.getName()).append(" está congelado!");
@@ -406,6 +477,14 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies a healing effect to the specified Pokémon. The amount healed
+     * is 5% of the Pokémon's maximum health, with a minimum of 1 health point restored.
+     * A message describing the healing effect is appended to the provided StringBuilder.
+     *
+     * @param pokemon The Pokémon that will receive the healing effect.
+     * @param message A StringBuilder to store the descriptive message of the healing effect.
+     */
     private void applyHealEffect(Pokemon pokemon, StringBuilder message) {
         int healAmount = (int) (pokemon.maxHealth * 0.05);
         if(healAmount == 0) { healAmount = 1; }
@@ -413,12 +492,24 @@ public class State implements Serializable {
         message.append(pokemon.getName()).append(" recuperó ").append(healAmount).append(" PS!");
     }
 
+    /**
+     * Applies a stat increase effect to the specified Pokémon by enhancing a specific stat
+     * based on the type of effect. A descriptive message is appended indicating the stat
+     * that was increased.
+     *
+     * @param pokemon The Pokémon that will receive the stat increase effect.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyStatUpEffect(Pokemon pokemon, StringBuilder message) {
         String stat = type.name().split("_")[0].toLowerCase();
         pokemon.modifyStat(stat, 1.2);
         message.append(pokemon.getName()).append(" aumentó su ").append(stat).append("!");
     }
 
+    /**
+     * Applies the confusion effect to the specified Pokémon. The effect may cause the Pokémon
+     * to harm itself with a 33% probability or simply remain confused. A descriptive message
+     * indicating the result of the confusion effect*/
     private void applyConfusionEffect(Pokemon pokemon, StringBuilder message) {
         if (Math.random() < 0.33) { // 33% de golpearse a sí mismo
             damage = pokemon.getAttacks().get(0).getPower() / 2;
@@ -430,7 +521,9 @@ public class State implements Serializable {
     }
 
     /**
-     * Verifica si el estado sigue activo
+     * Checks whether the current state is active by determining if its duration is non-zero.
+     *
+     * @return true if the state's duration is greater than 0, false otherwise.
      */
     public boolean isActive() {
         return duration != 0;
@@ -443,6 +536,14 @@ public class State implements Serializable {
 
     // Métodos auxiliares adicionales para completar la implementación
 
+    /**
+     * Applies a stat reduction effect to the specified Pokémon, decreasing one of its stats
+     * based on the associated state type. A descriptive message is appended to indicate
+     * which stat was reduced and the Pokémon it affected.
+     *
+     * @param pokemon The Pokémon that will be affected by the stat reduction.
+     * @param message A StringBuilder to store the descriptive message of the effect.
+     */
     private void applyStatDownEffect(Pokemon pokemon, StringBuilder message) {
         String stat = type.name().split("_")[0].toLowerCase();
         int stages = -1;
@@ -450,6 +551,8 @@ public class State implements Serializable {
         message.append(pokemon.getName()).append(" redujo su ").append(stat).append("!");
     }
 
+    /**
+     * Applies the Leech Seed effect to the*/
     private void applyLeechSeedEffect(Pokemon pokemon, StringBuilder message) {
         int damage = pokemon.maxHealth / 8;
         pokemon.takeDamage(damage);
@@ -457,6 +560,15 @@ public class State implements Serializable {
         message.append(pokemon.getName()).append(" perdió ").append(damage).append(" PS por drenadoras!");
     }
 
+    /**
+     * Applies the Curse effect to a Pokémon. The effect varies depending on the Pokémon's type:
+     * If the Pokémon is of type "GHOST", it sacrifices half of its maximum health to apply a
+     * detrimental effect. For other types, the Pokémon's attack and defense stats are increased
+     * by one stage each, while its speed stat is reduced by one stage.
+     *
+     * @param pokemon The Pokémon to which the Curse effect is applied.
+     * @param message A StringBuilder to append a descriptive message of the applied effect.
+     */
     private void applyCurseEffect(Pokemon pokemon, StringBuilder message) {
         if (pokemon.getType().equals("GHOST")) {
             // Efecto para Pokémon fantasma
@@ -472,6 +584,18 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the "Nightmare" effect to the specified Pokémon. This effect
+     * only occurs if the Pokémon is in a "sleep" state. When applied, the
+     * effect deals damage equivalent to one-fourth of the Pokémon's maximum
+     * health. The damage dealt is followed by a descriptive message.
+     *
+     * @param pokemon The Pokémon affected by the nightmare effect. The effect
+     *                is applied only if the Pokémon is in a "sleep" state.
+     * @param message A StringBuilder to store the descriptive message of the
+     *                effect, indicating the impact of the nightmare on the
+     *                Pokémon.
+     */
     private void applyNightmareEffect(Pokemon pokemon, StringBuilder message) {
         if (pokemon.hasState(String.valueOf(StateType.SLEEP))) {
             int damage = pokemon.maxHealth/ 4;
@@ -480,11 +604,23 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the protect effect to the specified Pokémon, making it protected,
+     * and appends the corresponding message to the provided message builder.
+     *
+     * @param pokemon the Pokémon to apply the protect effect to
+     * @param message the StringBuilder to which the message will be appended
+     */
     private void applyProtectEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setProtected(true);
         message.append(pokemon.getName()).append(" se protegió!");
     }
 
+    /**
+     *
+     * @param pokemon
+     * @param message
+     */
     private void applyPerishSongEffect(Pokemon pokemon, StringBuilder message) {
         if (duration == 3) { // Solo mostrar el mensaje el primer turno
             message.append("¡Un canto mortal afecta a ").append(pokemon.getName()).append("!");
@@ -495,6 +631,13 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the Destiny Bond effect to the specified Pokémon. This effect links
+     * the Pokémon's fate, typically implying that the opponent will also faint
+     * if they cause this Pokémon to faint, depending on the battle mechanics.
+     *
+     * @param pokemon the Pokémon being targeted to apply the Destiny Bond effect
+     * @param message a StringBuilder to append messages indicating the*/
     private void applyDestinyBondEffect(Pokemon pokemon, StringBuilder message) {
         if (duration == 0) {
             message.append("¡").append(pokemon.getName()).append(" vinculó su destino!");
@@ -506,6 +649,14 @@ public class State implements Serializable {
         message.append("¡Púas esparcidas en el campo rival!");
     }
 
+    /**
+     * Applies the sandstorm effect to the given Pokemon. If the Pokemon's type is
+     * not ROCK, GROUND, or STEEL, it takes damage equal to 1/16 of its maximum health.
+     * A message describing the damage is appended to the provided StringBuilder.
+     *
+     * @param pokemon the Pokemon to which the sandstorm effect is applied
+     * @param message a StringBuilder to append the damage message if applicable
+     */
     private void applySandstormEffect(Pokemon pokemon, StringBuilder message) {
         if (!pokemon.getType().equals("ROCK") &&
                 !pokemon.getType().equals("GROUND") &&
@@ -516,6 +667,13 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the taunt effect to a given Pokémon by modifying its stats
+     * and appending a message about the applied taunt effect.
+     *
+     * @param pokemon the Pokémon to which the taunt effect is applied
+     * @param message the message builder to append the taunt effect message
+     */
     private void applyTauntEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("speed",1.3);
         pokemon.modifyStat("defense",0.4);
@@ -524,6 +682,12 @@ public class State implements Serializable {
         message.append("¡").append(pokemon.getName()).append(" fue provocado!");
     }
 
+    /**
+     * Applies the torment effect to a given Pokémon, modifying specific stats and appending a message.
+     *
+     * @param pokemon the Pokémon to which the torment effect will be applied
+     * @param message the StringBuilder used to append the message indicating the effect application
+     */
     private void applyTormentEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("speed",1.3);
         pokemon.modifyStat("defense",0.6);
@@ -531,12 +695,27 @@ public class State implements Serializable {
         message.append("¡").append(pokemon.getName()).append(" fue atormentado!");
     }
 
+    /**
+     * Applies the transform effect to the specified Pokémon. The transform effect reduces the Pokémon's
+     * health by a calculated amount and appends a transformation message to the provided StringBuilder.
+     *
+     * @param pokemon the Pokémon to which the transform effect will be applied
+     * @param message the StringBuilder used to append the transformation message
+     */
     private void applyTransformEffect(Pokemon pokemon, StringBuilder message) {
         int hpCost = pokemon.maxHealth / 5;
         pokemon.setNewPS(hpCost);
         message.append("¡").append(pokemon.getName()).append(" se transformó!");
     }
 
+    /**
+     * Applies the Substitute effect to the given Pokémon. This effect reduces the Pokémon's health
+     * by one-fourth of its maximum health and sets a new state if the Pokémon has enough health.
+     * If the Pokémon does not have sufficient health, no changes are applied.
+     *
+     * @param pokemon The Pokémon instance to which the Substitute effect will be applied.
+     * @param message The StringBuilder to append status messages indicating the result of the operation.
+     */
     private void applySubstituteEffect(Pokemon pokemon, StringBuilder message) {
         int hpCost = pokemon.maxHealth / 4;
         if (pokemon.currentHealth > hpCost) {
@@ -548,54 +727,104 @@ public class State implements Serializable {
         }
     }
 
+    /**
+     * Applies the Ingrain*/
     private void applyIngrainEffect(Pokemon pokemon, StringBuilder message) {
         int heal = pokemon.maxHealth / 16;
         pokemon.heals(heal);
         message.append("¡").append(pokemon.getName()).append(" se arraigó y recuperó PS!");
     }
 
+    /**
+     * Applies the disable effect on the given Pokémon, preventing it from using its last move.
+     *
+     * @param pokemon the Pokémon on which the disable effect is applied
+     * @param message the message that describes the action performed
+     */
     private void applyDisableEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.disableLastMove();
         message.append("¡Un movimiento de ").append(pokemon.getName()).append(" fue anulado!");
     }
 
+    /**
+     * Applies the recharge effect to the specified Pokemon by modifying its speed stat
+     * and appending a message indicating that it needs to recharge energy.
+     *
+     * @param pokemon the Pokemon to which the recharge effect is applied
+     * @param message the StringBuilder used to append the recharge message
+     */
     private void applyRechargeEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("speed",0.3);
         message.append("¡").append(pokemon.getName()).append(" debe recargar energía!");
     }
 
+    /**
+     * Applies the rage effect to a specific Pokémon, increasing its*/
     private void applyRageEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("attack",1.3);
         message.append("¡").append(pokemon.getName()).append(" entra en cólera!");
     }
 
+    /**
+     * Applies a trapped effect to the specified Pokemon, preventing it from escaping
+     * and updates the provided*/
     private void applyTrappedEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setTrapped(true);
         message.append("¡").append(pokemon.getName()).append(" no puede escapar!");
     }
 
+    /**
+     * Applies a type change effect to a given Pokemon and updates the provided message
+     * to reflect the change.
+     *
+     * @param pokemon the Pokemon whose type is to be changed
+     * @param message the StringBuilder object to append the change message
+     */
     private void applyTypeChangeEffect(Pokemon pokemon, StringBuilder message) {
         // Necesitas especificar el nuevo tipo
         // pokemon.setType(newType);
         message.append("¡El tipo de ").append(pokemon.getName()).append(" cambió!");
     }
 
+    /**
+     * Applies the Magic Coat effect to the specified Pokémon, making it protected
+     * and appends a message indicating the effect activation.
+     *
+     * @param pokemon the Pokémon to which the Magic Coat effect is applied
+     * @param message the StringBuilder to append the activation message to
+     */
     private void applyMagicCoatEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setProtected(true);
         message.append("¡").append(pokemon.getName()).append(" activó manto mágico!");
     }
 
+    /**
+     * Applies the Snatch effect to the specified Pokémon, enhancing its speed and attack stats,
+     * and appends a message indicating the effect has been prepared.
+     *
+     * @param pokemon the Pokémon to which the Snatch effect will be applied
+     * @param message the message builder to append the effect notification to
+     */
     private void applySnatchEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("speed", 1.6);
         pokemon.modifyStat("attack", 1.6);
         message.append("¡").append(pokemon.getName()).append(" prepara un arrebato!");
     }
 
+    /**
+     * Applies the grudge effect to the specified Pokemon, reducing its attack stat*/
     private void applyGrudgeEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.modifyStat("attack", 0.8);
         message.append("¡").append(pokemon.getName()).append(" guarda rencor!");
     }
 
+    /**
+     * Applies the imprison effect to the specified Pokemon, making it protected and
+     * appends a message indicating that the Pokemon is now protected.
+     *
+     * @param pokemon the Pokemon to which the imprison effect is applied
+     * @param message the StringBuilder to append the protection message
+     */
     private void applyImprisonEffect(Pokemon pokemon, StringBuilder message) {
         pokemon.setProtected(true);
         message.append("¡").append(pokemon.getName()).append(" se Protege!");
