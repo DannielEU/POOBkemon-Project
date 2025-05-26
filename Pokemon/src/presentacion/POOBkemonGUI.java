@@ -8,28 +8,45 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+import javax.swing.plaf.basic.BasicScrollBarUI;
+import javax.swing.text.DefaultStyledDocument;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyleContext;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 
 import domain.*;
 import presentacion.Auxiliar;
+import presentacion.ImagePanel;
+import presentacion.PokemonBattlePanel;
 
 public class POOBkemonGUI extends JFrame implements Auxiliar {
     //entradas del dominio
-	private boolean random = false; // si los stats son random
-	private ArrayList<String> players = new ArrayList<>(); //[trainer1, trainer2]
-	private HashMap<String,ArrayList<Integer>> pokemones = new HashMap<>(); //<trainer, pokemones(int)>
-	private HashMap<String,ArrayList<Integer>> moves = new HashMap<>(); //trianer, moves (en el orden de los pokemones)>
+    private boolean random = false; // si los stats son random
+    private ArrayList<String> players = new ArrayList<>(); //[trainer1, trainer2]
+    private HashMap<String,ArrayList<Integer>> pokemones = new HashMap<>(); //<trainer, pokemones(int)>
+    private HashMap<String,ArrayList<Integer>> moves = new HashMap<>(); //trianer, moves (en el orden de los pokemones)>
     private HashMap<String,String[][]> items = new HashMap<>();
-	private POOBkemon game;
-	//
+    private POOBkemon game;
+    //
     private Clip clip;
-	private JPanel IntroductionPanel;
-	private JPanel menuPanel;
-	private JPanel gameMode;
+    private JPanel IntroductionPanel;
+    private JPanel menuPanel;
+    private JPanel gameMode;
+    private JPanel machinesPanel;
+    private JPanel playersPanel;
+    private JPanel gamePanel;
+    private JLabel character;
+    private JPanel choosePokemonPanel;
+    private JPanel chooseMovesPanel;
     //
     private JMenuBar menuBar;
     private JMenu menuArchivo;
@@ -53,10 +70,23 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     private JButton itemsButton;
     private JButton stastRandomButton;
     private JButton exitButton;
-    private JButton onePlayer;
-    private JButton twoPlayers;
+    private JButton playerVsPlayer;
+    private JButton playerVsMachine;
+    private JButton survival;
     private JButton machines;
     private JButton backButtonMenu;
+    private JButton backButtonIntro;
+    private JButton backButtonPlayersPanel;
+
+    private JButton startButton;
+    private JTextField player1Field;
+    private JTextField player2Field;
+
+    private String player1Name;
+    private String player2Name;
+    private String gameModeName;
+
+
     //
     private static final String CHARACTER = "resources/personaje/";
     private static final String MENU = "resources/menu/";
@@ -67,13 +97,15 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     private static final String SHINY_PATH = POKEMONES + "Shiny/";
     private static final String PNG_EXT = ".png";
     private static final String songs =  "resources/songs/";
-    private static final String selectionPanel = "resources/menu/selectionPanel.png";
+    private static final String selectionPanel = "resources/menu/battleMenuPanel.jpg";
     private static final String ITEMS = "resources/Items/";
     private static final String BUTTONS = "resources/menu/buttons/";
     private static final String POKEDEX = "resources/menu/pokedex.png";
     private static final String TYPES =  "resources/pokemones/Emerald/types/";
-    private static final String GALERIA_ITEMS =  "resources/menu/galeria_items.png";
-    private static final String APP_ICON = "resources/icon/pokemon_icon.png";
+    private static final String GALERIA_ITEMS =  "resources/menu/items.png";
+    private static final String EXIT_ICON = "resources/icon/exit_icon.png";
+    private static final String FRAME = "resources/menu/frame/";
+    private static final String APP_ICON = "resources/icon/window_icon.png";
     private static final String WINNER = "resources/menu/winner/";
 
 
@@ -89,7 +121,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         prepareActions();
     }
     private void prepareElements() {
-    	prepareElementsMenu();
+        prepareElementsMenu();
         prepareIntroductionPanel();
         prepareMenuPanel();
         prepareGameMode();
@@ -99,10 +131,10 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         setIconImage(new ImageIcon(APP_ICON).getImage());
     }
     private void prepareActions(){
-    	prepareActionsMenuBar();
-    	prepareIntroductionAction();
-    	prepareActionsMenuPanel();
-    	prepareActionsGameMode();
+        prepareActionsMenuBar();
+        prepareIntroductionAction();
+        prepareActionsMenuPanel();
+        prepareActionsGameMode();
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -111,17 +143,17 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         });
     }
     private void  refresh(JPanel panel) {
-	    getContentPane().removeAll();
-	    add(panel);
-	    revalidate();
-	    repaint();
-	    panel.requestFocusInWindow();
-	}
+        getContentPane().removeAll();
+        add(panel);
+        revalidate();
+        repaint();
+        panel.requestFocusInWindow();
+    }
     private void prepareElementsMenu() {
-		menuBar = new JMenuBar();
-		//
-		menuArchivo = new JMenu("Archivo");
-		menuOption = new JMenu("Opciones");
+        menuBar = new JMenuBar();
+        //
+        menuArchivo = new JMenu("Archivo");
+        menuOption = new JMenu("Opciones");
         fondos = new JMenu("Fondos");
         frames = new JMenu("Frames");
         //
@@ -129,10 +161,10 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         frame2 = new JMenuItem("Clasico");
         fondo1 = new JMenuItem("Hierba alta");
         fondo2 = new JMenuItem("Alto Mando");
-		itemNuevo = new JMenuItem("Nuevo Juego");
-		itemAbrir = new JMenuItem("Abrir Partida");
-		itemSalvar = new JMenuItem("Guardar Partida");
-		itemSalir = new JMenuItem("Salir");
+        itemNuevo = new JMenuItem("Nuevo Juego");
+        itemAbrir = new JMenuItem("Abrir Partida");
+        itemSalvar = new JMenuItem("Guardar Partida");
+        itemSalir = new JMenuItem("Salir");
         //
         menuArchivo.add(itemNuevo);
         menuArchivo.add(itemAbrir);
@@ -161,8 +193,28 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         frame1.addActionListener(e -> {frame=0;});
         frame2.addActionListener(e -> {frame=1;});
     }
+
     private void prepareIntroductionPanel() {
-    	IntroductionPanel = new ImagePanel(null, MENU+"start.png");
+        IntroductionPanel = new JPanel(new BorderLayout()){
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+            }
+        };
+        IntroductionPanel.setOpaque(false);
+        ImageIcon icon = new ImageIcon(MENU + "start2.gif");
+        JLabel gifLabel = new JLabel(icon);
+
+        IntroductionPanel.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                Dimension size = IntroductionPanel.getSize();
+                gifLabel.setBounds(0, 0, size.width, size.height);
+            }
+        });
+
+        IntroductionPanel.add(gifLabel);
         IntroductionPanel.addHierarchyListener(e -> {
             if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 if (IntroductionPanel.isShowing()) {
@@ -173,6 +225,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             }
         });
     }
+
     private void prepareIntroductionAction() {
         InputMap inputMap = IntroductionPanel.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW);
         ActionMap actionMap = IntroductionPanel.getActionMap();
@@ -189,39 +242,49 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         IntroductionPanel.requestFocusInWindow(); // Fuerza el foco
     }
     private void prepareMenuPanel() {
-    	menuPanel = new ImagePanel(new BorderLayout(), MENU+"menuPrincipal.png");
+        menuPanel = new JPanel(new BorderLayout()) {
+            private ImageIcon gifIcon = new ImageIcon(MENU + "menu.gif");
+            @Override
+            protected void paintComponent(Graphics g) {
+                g.drawImage(gifIcon.getImage(), 0, 0, getWidth(), getHeight(), this);
+                super.paintComponent(g);
+            }
+        };
+        menuPanel.setOpaque(false);
         prepareElementsMenuPanel();
     }
+
     private void prepareElementsMenuPanel() {
-    	JPanel centerPanel = new JPanel(new GridBagLayout());
-		centerPanel.setOpaque(false);
+
+        JPanel centerPanel = new JPanel(null);
+        centerPanel.setOpaque(false);
         //
-        JPanel buttonPanel = new JPanel(new GridLayout(5, 1));
-        buttonPanel.setOpaque(false);
-    	playButton = Auxiliar.crearBotonEstilizado("Jugar",new Rectangle(275, 100, 200, 60),new Color(240, 240, 240, 200));
-    	pokedexButton = Auxiliar.crearBotonEstilizado("Pokedex",new Rectangle(275, 170, 200, 60),new Color(240, 240, 240, 200));
-    	itemsButton = Auxiliar.crearBotonEstilizado("Items",new Rectangle(275, 240, 200, 60),new Color(240, 240, 240, 200));
-    	stastRandomButton = Auxiliar.crearBotonEstilizado(this.random ? "Stat Aleatorios" : "Stat Base",new Rectangle(275, 310, 200, 60),new Color(240, 240, 240, 200));
-    	exitButton = Auxiliar.crearBotonEstilizado("Salir",new Rectangle(275, 380, 200, 60),new Color(240, 240, 240, 200));
-    	playButton.setPreferredSize(new Dimension(200, 60));
-    	pokedexButton.setPreferredSize(new Dimension(200, 60));
-    	itemsButton.setPreferredSize(new Dimension(200, 60));
-    	stastRandomButton.setPreferredSize(new Dimension(200, 60));
-    	exitButton.setPreferredSize(new Dimension(200, 60));
-    	buttonPanel.add(playButton);
-    	buttonPanel.add(pokedexButton);
-    	buttonPanel.add(itemsButton);
-    	buttonPanel.add(stastRandomButton);
-    	buttonPanel.add(exitButton);
-    	centerPanel.add(buttonPanel);
+
+        playButton = Auxiliar.crearBotonEstilizado("Jugar",new Rectangle(275, 110, 200, 60),new Color(240, 240, 240, 200));
+        pokedexButton = Auxiliar.crearBotonEstilizado("Pokedex",new Rectangle(275, 180, 200, 60),new Color(240, 240, 240, 200));
+        itemsButton = Auxiliar.crearBotonEstilizado("Items",new Rectangle(275, 250, 200, 60),new Color(240, 240, 240, 200));
+        stastRandomButton = Auxiliar.crearBotonEstilizado(this.random ? "Stat Aleatorios" : "Stat Base",new Rectangle(275, 320, 200, 60),new Color(240, 240, 240, 200));
+        backButtonIntro = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30), new Color(240, 240, 240, 200));
+        playButton.setPreferredSize(new Dimension(200, 60));
+        pokedexButton.setPreferredSize(new Dimension(200, 60));
+        itemsButton.setPreferredSize(new Dimension(200, 60));
+        stastRandomButton.setPreferredSize(new Dimension(200, 60));
+
+        centerPanel.add(playButton);
+        centerPanel.add(pokedexButton);
+        centerPanel.add(itemsButton);
+        centerPanel.add(stastRandomButton);
+        centerPanel.add(backButtonIntro);
+
         menuPanel.add(centerPanel, BorderLayout.CENTER);
     }
+
     private void prepareActionsMenuPanel() {
-    	playButton.addActionListener(e -> startNewGame());
-    	pokedexButton.addActionListener(e -> showPokedex());
-    	itemsButton.addActionListener(e -> showItemsGalery());
-    	stastRandomButton.addActionListener(e -> actualizarTextoDificultad());
-        exitButton.addActionListener(e -> confirmExit());
+        playButton.addActionListener(e -> startNewGame());
+        pokedexButton.addActionListener(e -> showPokedex());
+        itemsButton.addActionListener(e -> showItemsGalery());
+        stastRandomButton.addActionListener(e -> actualizarTextoDificultad());
+        backButtonIntro.addActionListener(e -> refresh(IntroductionPanel));
         menuPanel.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -232,6 +295,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         });
         menuPanel.setFocusable(true);
     }
+
     private void showPokedex() {
 
         JPanel pokedexPanel = new ImagePanel(null, POKEDEX);
@@ -246,6 +310,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         JLabel type1 = new JLabel();
         type1.setBounds(20, 120, 150, 150); // CENTRO
         pokedexPanel.add(type1);
+
         JLabel type2 = new JLabel();
         type2.setBounds(20, 200, 150, 150); // CENTRO
         pokedexPanel.add(type2);
@@ -275,9 +340,25 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         listaPanel.setLayout(new BoxLayout(listaPanel, BoxLayout.Y_AXIS));
         listaPanel.setOpaque(false);
 
-        JButton upButton = Auxiliar.crearBotonEstilizado("▲", new Rectangle(350, 25, 50, 20),new Color(240, 240, 240, 200));
-        JButton downButton = Auxiliar.crearBotonEstilizado("▼", new Rectangle(350, 418, 50, 20),new Color(240, 240, 240, 200));
-        JButton backButton = Auxiliar.crearBotonTransparente("BACK", new Rectangle(30, 395, 130, 40),true);
+        ImageIcon arrowDown = new ImageIcon(MENU + "flechaAbajo.png");
+        ImageIcon arrowUp = new ImageIcon(MENU + "flechaArriba.png");
+
+        Image scaledArrowDown = arrowDown.getImage().getScaledInstance(190, 60, Image.SCALE_SMOOTH);
+        Image scaledArrowUp = arrowUp.getImage().getScaledInstance(190, 60, Image.SCALE_SMOOTH);
+
+        JButton upButton = new JButton();
+        upButton.setBounds(475, 0, 190, 60);
+        upButton.setIcon(new ImageIcon(scaledArrowUp));
+        upButton.setBorderPainted(false);
+        upButton.setContentAreaFilled(false);
+
+        JButton downButton = new JButton();
+        downButton.setBounds(475, 435, 190, 60);
+        downButton.setIcon(new ImageIcon(scaledArrowDown));
+        downButton.setBorderPainted(false);
+        downButton.setContentAreaFilled(false);
+
+        JButton backButton = Auxiliar.crearBotonTransparente("Volver", new Rectangle(30, 395, 130, 40),true);
 
         pokedexPanel.add(upButton);
         pokedexPanel.add(downButton);
@@ -287,7 +368,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             listaPanel.removeAll();
 
             for (int i = 0; i < pokemones.size(); i++) {
-            	String[] p = pokemones.get(i);
+                String[] p = pokemones.get(i);
                 JLabel pokemonLabel = new JLabel((i + 1) + ". " + p[1]);
                 pokemonLabel.setFont(cargarFuentePixel(20));
 
@@ -295,13 +376,13 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                     try {
                         ImageIcon icon = new ImageIcon(POKEMONES +"Normal/"+(i+1)+".png");
                         imagenLabel.setIcon(new ImageIcon(icon.getImage().getScaledInstance(
-                            150, 150, Image.SCALE_SMOOTH)));
+                                150, 150, Image.SCALE_SMOOTH)));
                         ImageIcon t1 = new ImageIcon(TYPES+p[2]+".png");
                         ImageIcon t2 = new ImageIcon(TYPES+p[3]+".png");
                         type1.setIcon(new ImageIcon(t1.getImage().getScaledInstance(
                                 128, 56, Image.SCALE_SMOOTH)));
                         type2.setIcon(new ImageIcon(t2.getImage().getScaledInstance(
-                        		128, 56, Image.SCALE_SMOOTH)));
+                                128, 56, Image.SCALE_SMOOTH)));
                     } catch (Exception e) {
                         Log.record(e);
                         imagenLabel.setIcon(null);
@@ -310,10 +391,10 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                     // Imagen del Pokémon anterior
                     if (currentIndex[0] > 0) {
                         try {
-                        	String[] anterior = pokemones.get(currentIndex[0] - 1);
+                            String[] anterior = pokemones.get(currentIndex[0] - 1);
                             ImageIcon iconAnterior = new ImageIcon(POKEMONES +"Normal/"+(i)+".png");
                             imagenArriba.setIcon(new ImageIcon(iconAnterior.getImage().getScaledInstance(
-                                130, 55, Image.SCALE_SMOOTH)));
+                                    130, 55, Image.SCALE_SMOOTH)));
                         } catch (Exception e) {
                             Log.record(e);
                             imagenArriba.setIcon(null);
@@ -324,10 +405,10 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                     // Imagen del Pokémon siguiente
                     if (currentIndex[0] < pokemones.size() - 1) {
                         try {
-                        	String[] siguiente = pokemones.get(currentIndex[0] + 1);
+                            String[] siguiente = pokemones.get(currentIndex[0] + 1);
                             ImageIcon iconSiguiente = new ImageIcon(POKEMONES +"Normal/"+ (i+2)+".png");
                             imagenAbajo.setIcon(new ImageIcon(iconSiguiente.getImage().getScaledInstance(
-                                130, 55, Image.SCALE_SMOOTH)));
+                                    130, 55, Image.SCALE_SMOOTH)));
                         } catch (Exception e) {
                             Log.record(e);
                             imagenAbajo.setIcon(null);
@@ -400,471 +481,680 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         repaint();
     }
     private String getListPokemones(int a, ArrayList<String[]> pokemones) {
-    	String resultado="";
-    	for(int i=a-2;i<=a+3; i++) {
-    		try {
-    			String[] pokemon = pokemones.get(i);
-    			resultado += "N°." + pokemon[0] + "  " +pokemon[1] + "\n" + "\n";
-    		}catch (Exception e) {
-    			Log.record(e);
-    			resultado += "\n"+"\n";
-    		}
-    	}
-    	return resultado;
+        String resultado="";
+        for(int i=a-2;i<=a+3; i++) {
+            try {
+                String[] pokemon = pokemones.get(i);
+                resultado += "N°." + pokemon[0] + "  " +pokemon[1] + "\n" + "\n";
+            }catch (Exception e) {
+                Log.record(e);
+                resultado += "\n"+"\n";
+            }
+        }
+        return resultado;
     }
     private void showItemsGalery() {
-    	JPanel itemsPanel = new ImagePanel(null, GALERIA_ITEMS);
+
+        JPanel itemsPanel = new ImagePanel(null, GALERIA_ITEMS);
         ArrayList<ArrayList<String>> items = this.game.getItemInfo();
         final int[] currentIndex = {0}; // Para trackear el primer item visible
 
         // Panel para mostrar los items (4 máximo)
         JPanel itemsDisplayPanel = new JPanel(null);
-        itemsDisplayPanel.setBounds(330, 78, 370, 330);
+        itemsDisplayPanel.setBounds(0, 0, 750, 550);
         itemsDisplayPanel.setOpaque(false);
 
 
-     // Área de información (DERECHA de la imagen) - TRANSPARENTE
+        // Área de información (DERECHA de la imagen) - TRANSPARENTE
         JTextPane infoPanel = new JTextPane();  // Cambiamos a JTextPane para mejor control
-        infoPanel.setBounds(32, 100, 130, 200);
+        infoPanel.setBounds(300, 40, 390, 200);
         infoPanel.setEditable(false);
         infoPanel.setFont(cargarFuentePixel(18));
         infoPanel.setOpaque(false);  // Hacemos el fondo transparente
 
+        //Aumenta el espacio entre lineas
+        StyleContext sc = new StyleContext();
+        DefaultStyledDocument doc = new DefaultStyledDocument(sc);
+        Style defaultStyle = sc.getStyle(StyleContext.DEFAULT_STYLE);
+        StyleConstants.setLineSpacing(defaultStyle, 0.9f); // Aumentar el espaciado (0.5 = 50% más espacio)
+        infoPanel.setDocument(doc);
         itemsPanel.add(infoPanel);
 
-        //Botones con diseño mejorado
-        JButton upButton = Auxiliar.crearBotonEstilizado("▲", new Rectangle(490, 15, 50, 20),new Color(240, 240, 240, 200));
-        JButton downButton = Auxiliar.crearBotonEstilizado("▼", new Rectangle(490, 450, 50, 20),new Color(240, 240, 240, 200));
-        JButton backButton = Auxiliar.crearBotonTransparente("BACK", new Rectangle(30, 395, 130, 40),true);
+        JLabel messageLabel = new JLabel("ITEMS");
+        messageLabel.setFont(cargarFuentePixel(32));
+        messageLabel.setForeground(Color.white);
+        messageLabel.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel.setBounds(30, 10, 400, 50);
 
-        itemsPanel.add(upButton);
-        itemsPanel.add(downButton);
+        JLabel message1Label = new JLabel("INFORMACION SOBRE LOS ITEMS DEL JUEGO");
+        message1Label.setFont(cargarFuentePixel(24));
+        message1Label.setForeground(Color.white);
+        message1Label.setHorizontalAlignment(JLabel.LEFT);
+        message1Label.setBounds(120, 360, 600, 100);
+
+
+        ImageIcon arrowNext = new ImageIcon(MENU + "flechaDerecha.png");
+        ImageIcon arrowPrev = new ImageIcon(MENU + "flechaIzquierda.png");
+
+        Image scaledArrowNext = arrowNext.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+        Image scaledArrowPrev = arrowPrev.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+
+        JButton nextButton = new JButton();
+        nextButton.setBounds(160, 150, 100, 100);
+        nextButton.setIcon(new ImageIcon(scaledArrowNext));
+        nextButton.setBorderPainted(false);
+        nextButton.setContentAreaFilled(false);
+
+        JButton prevButton = new JButton();
+        prevButton.setBounds(-15, 150, 100, 100);
+        prevButton.setIcon(new ImageIcon(scaledArrowPrev));
+        prevButton.setBorderPainted(false);
+        prevButton.setContentAreaFilled(false);
+
+
+        JButton backButton = Auxiliar.crearBotonTransparente("Volver", new Rectangle(0, 395, 130, 40),true);
+
+        itemsPanel.add(nextButton);
+        itemsPanel.add(prevButton);
+        itemsPanel.add(messageLabel);
+        itemsPanel.add(message1Label);
         itemsPanel.add(backButton);
         itemsPanel.add(itemsDisplayPanel);
         itemsPanel.add(infoPanel);
 
-        // Coordenadas personalizadas para cada item (puedes modificarlas)
-        final int[][] itemPositions = {
-            {10,30},   // Item 1 (x, y)
-            {130,30},   // Item 2
-            {250,30},   // Item 3
-            {10,180},    // Item 4
-            {130,180},   // Item 5
-            {150,180} // Item 6
-        };
 
         Runnable updateItemsDisplay = () -> {
             itemsDisplayPanel.removeAll();
 
-            int itemsToShow = Math.min(6, items.size() - currentIndex[0]);
-
-            for (int i = 0; i < itemsToShow; i++) {
-            	ArrayList<String> item = items.get(currentIndex[0] + i);
-
-                // Crear botón con imagen del item
-                JButton itemButton = createImageButton(ITEMS+item.get(0)+".png",
-                                                     itemPositions[i][0],
-                                                     itemPositions[i][1],
-                                                     110, 110);
-
-                // Acción al hacer clic en el item
-                itemButton.addActionListener(e -> {
-                    infoPanel.setText(item.get(1));
-                });
-
+            if (!items.isEmpty()) {
+                ArrayList<String> item = items.get(currentIndex[0]);
+                JButton itemButton = createImageButton(ITEMS + item.get(0) + ".png", 65, 140, 100, 100);
                 itemsDisplayPanel.add(itemButton);
+                String texto = item.get(1).replace("\n", "\n\n");
+                infoPanel.setText(texto);
             }
-
             itemsDisplayPanel.revalidate();
             itemsDisplayPanel.repaint();
-
-            // Actualizar estado de los botones de navegación
-            upButton.setEnabled(currentIndex[0] > 0);
-            downButton.setEnabled(currentIndex[0] + 6 < items.size());
         };
 
-        // Acciones de navegación
-        upButton.addActionListener(e -> {
+        nextButton.addActionListener(e -> {
+            if (currentIndex[0] < items.size() - 1) {
+                currentIndex[0]++;
+                updateItemsDisplay.run();
+            }
+        });
+
+        prevButton.addActionListener(e -> {
             if (currentIndex[0] > 0) {
-                currentIndex[0] = Math.max(0, currentIndex[0] - 6);
+                currentIndex[0]--;
                 updateItemsDisplay.run();
             }
         });
 
-        downButton.addActionListener(e -> {
-            if (currentIndex[0] + 6 < items.size()) {
-                currentIndex[0] += 6;
-                updateItemsDisplay.run();
-            }
-        });
-
+        // Acciones de navegación
         backButton.addActionListener(e -> refresh(menuPanel));
 
         // Mostrar los primeros items
         updateItemsDisplay.run();
-
         getContentPane().removeAll();
         add(itemsPanel);
         revalidate();
         repaint();
     }
+
     private void prepareGameMode() {
-    	gameMode = new ImagePanel(new BorderLayout(), selectionPanel);
-        prepareElementsGameMode();
-    }
-    private void prepareElementsGameMode() {
-    	JPanel centerPanel = new JPanel(new GridBagLayout());
-		centerPanel.setOpaque(false);
+        gameMode = new JPanel(new BorderLayout()) {
+            private ImageIcon gifGameMode = new ImageIcon(MENU + "gameModeMenu.gif");
+            protected void paintComponent(Graphics g) {
+                g.drawImage(gifGameMode.getImage(), 0, 0, getWidth(), getHeight(), this);
+                super.paintComponent(g);
+            }
+        };
+        gameMode.setOpaque(false);
+
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(null);
+        centerPanel.setOpaque(false);
         //
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
-        buttonPanel.setOpaque(false);
-        onePlayer = createImageButton(BUTTONS+"1Player.png",275, 100, 128, 128);
-    	twoPlayers = createImageButton(BUTTONS+"vs.png",275, 170, 128, 128);
-    	machines = createImageButton(BUTTONS+"1Player.png",275, 240, 128, 128);
-    	machines = createImageButton(BUTTONS+"1Player.png",275, 240, 128, 128);
-    	backButtonMenu = Auxiliar.crearBotonEstilizado("Back",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
 
-    	JPanel izqPrincipal = new JPanel(new BorderLayout());
-    	izqPrincipal.setOpaque(false);
-        JPanel panelSur = new JPanel(new BorderLayout());
-        panelSur.setOpaque(false);
+        JLabel messageLabel = new JLabel("Modos de Juego");
+        messageLabel.setFont(cargarFuentePixel(27));
+        messageLabel.setForeground(Color.white);
+        messageLabel.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel.setBounds(30, 12, 400, 50);
 
-        panelSur.add(new JLabel(" "), BorderLayout.SOUTH);
-        panelSur.add(backButtonMenu, BorderLayout.CENTER);
-        panelSur.add(new JLabel(" "), BorderLayout.WEST);
+        JLabel messageLabel1 = new JLabel("Jugador vs Maquina");
+        messageLabel1.setFont(cargarFuentePixel(16));
+        messageLabel1.setForeground(Color.white);
+        messageLabel1.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel1.setBounds(160, 60, 550, 108);
 
-        izqPrincipal.add(panelSur, BorderLayout.SOUTH);
+        JLabel messageLabel11 = new JLabel("<html>Modo clasico, un jugador<br>juega contra una maquina.</html>");
+        messageLabel11.setFont(cargarFuentePixel(12));
+        messageLabel11.setForeground(Color.white);
+        messageLabel11.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel11.setBounds(160, 108, 223, 108);
 
-    	buttonPanel.add(onePlayer);
-    	buttonPanel.add(twoPlayers);
-    	buttonPanel.add(machines);
-    	centerPanel.add(buttonPanel);
-    	gameMode.add(centerPanel, BorderLayout.CENTER);
-    	gameMode.add(izqPrincipal, BorderLayout.WEST);
+        JLabel messageLabel2 = new JLabel("Supervivencia");
+        messageLabel2.setFont(cargarFuentePixel(16));
+        messageLabel2.setForeground(Color.white);
+        messageLabel2.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel2.setBounds(185, 225, 550, 50);
+
+        JLabel messageLabel21 = new JLabel("<html>Un jugador juega contra<br>otro jugador y tendran que sobrevivir.</html>");
+        messageLabel21.setFont(cargarFuentePixel(12));
+        messageLabel21.setForeground(Color.white);
+        messageLabel21.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel21.setBounds(160, 265, 223, 50);
+
+        JLabel messageLabel3 = new JLabel("Maquina vs Maquina");
+        messageLabel3.setFont(cargarFuentePixel(16));
+        messageLabel3.setForeground(Color.white);
+        messageLabel3.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel3.setBounds(163, 360, 550, 50);
+
+        JLabel messageLabel31 = new JLabel("<html>Modo clasico, una maquina<br>juega contra otra maquina.</html>");
+        messageLabel31.setFont(cargarFuentePixel(12));
+        messageLabel31.setForeground(Color.white);
+        messageLabel31.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel31.setBounds(160, 404, 223, 50);
+
+        JLabel messageLabel4 = new JLabel("Jugador vs Jugador");
+        messageLabel4.setFont(cargarFuentePixel(16));
+        messageLabel4.setForeground(Color.white);
+        messageLabel4.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel4.setBounds(516, 93, 223, 50);
+
+        JLabel messageLabel41 = new JLabel("<html>Modo clasico, un jugador<br>juega contra otro jugador.</html>");
+        messageLabel41.setFont(cargarFuentePixel(12));
+        messageLabel41.setForeground(Color.white);
+        messageLabel41.setHorizontalAlignment(JLabel.LEFT);
+        messageLabel41.setBounds(520, 135, 223, 50);
+
+        ImageIcon message = new ImageIcon(FRAME + "4.png");
+
+        Image scaledMessage = message.getImage().getScaledInstance(400, 60, Image.SCALE_SMOOTH);
+        Image scaledMessage1 = message.getImage().getScaledInstance(223, 108, Image.SCALE_SMOOTH);
+        Image scaledMessage2 = message.getImage().getScaledInstance(223, 108, Image.SCALE_SMOOTH);
+        Image scaledMessage3 = message.getImage().getScaledInstance(223, 108, Image.SCALE_SMOOTH);
+        Image scaledMessage4 = message.getImage().getScaledInstance(223, 108, Image.SCALE_SMOOTH);
+
+        JButton messageButton = new JButton(new ImageIcon(scaledMessage));
+        JButton messageButton1 = new JButton(new ImageIcon(scaledMessage1));
+        JButton messageButton2 = new JButton(new ImageIcon(scaledMessage2));
+        JButton messageButton3 = new JButton(new ImageIcon(scaledMessage3));
+        JButton messageButton4 = new JButton(new ImageIcon(scaledMessage4));
+
+        messageButton.setBounds(10, 10, 400, 60);
+        messageButton1.setBounds(143, 90, 223, 108);
+        messageButton2.setBounds(143, 225, 223, 108);
+        messageButton3.setBounds(143, 360, 223, 108);
+        messageButton4.setBounds(503, 90, 223, 108);
+
+        messageButton.setBorderPainted(false);
+        messageButton1.setBorderPainted(false);
+        messageButton2.setBorderPainted(false);
+        messageButton3.setBorderPainted(false);
+        messageButton4.setBorderPainted(false);
+
+        messageButton.setContentAreaFilled(false);
+        messageButton1.setContentAreaFilled(false);
+        messageButton2.setContentAreaFilled(false);
+        messageButton3.setContentAreaFilled(false);
+        messageButton4.setContentAreaFilled(false);
+
+        playerVsPlayer = createImageButton(BUTTONS + "pvp.png", 370, 80, 128, 128);
+        playerVsMachine = createImageButton(BUTTONS+"pvm.png",10, 80, 128, 128);
+        survival = createImageButton(BUTTONS+"survival.png",10, 215, 128, 128);
+        machines = createImageButton(BUTTONS+"mvm.png",10, 350, 128, 128);
+        backButtonMenu = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(640, 10, 80, 25),new Color(240, 240, 240, 200));
+
+        centerPanel.add(messageLabel);
+        centerPanel.add(messageLabel1);
+        centerPanel.add(messageLabel2);
+        centerPanel.add(messageLabel3);
+        centerPanel.add(messageLabel4);
+        centerPanel.add(messageLabel11);
+        centerPanel.add(messageLabel21);
+        centerPanel.add(messageLabel31);
+        centerPanel.add(messageLabel41);
+        centerPanel.add(messageButton);
+        centerPanel.add(messageButton1);
+        centerPanel.add(messageButton2);
+        centerPanel.add(messageButton3);
+        centerPanel.add(messageButton4);
+        centerPanel.add(playerVsPlayer);
+        centerPanel.add(playerVsMachine);
+        centerPanel.add(survival);
+        centerPanel.add(machines);
+        centerPanel.add(backButtonMenu);
+        gameMode.add(centerPanel, BorderLayout.CENTER);
     }
     private void prepareActionsGameMode() {
-    	onePlayer.addActionListener(e -> {
-    		String machine = chooseMachine("Escoge maquina","Por escoger una maquina");
-    		createTrainers("Player1",machine);
-			choosePokemon();
-    		});
-    	twoPlayers.addActionListener(e -> {
-    		createTrainers("Player1","Player2");
-    		if(!booleanInput("Quiere inicial partida en survival?")){
-    			choosePokemon();
+        playerVsPlayer.addActionListener(e -> {
+            gameModeName = "pvp";
+            preparePlayersBeforeGame();
+        });
 
-    		}else {
-    			createDataForGame();
-                showTimer("s");
-    		}});
-    	machines.addActionListener(e -> {
-    		String machine1 = chooseMachine("Escoge maquina1","Por escoger una maquina \n(En caso de ser cancelado se tomara Defensive)");
-    		String machine2 = chooseMachine("Escoge maquina2","Por escoger una maquina \n(En caso de ser cancelado se tomara Defensive)");
-    		createTrainers(machine1+"1",machine2+"2");
-    		choosePokemon();
-    		});
-    	backButtonMenu.addActionListener(e -> refresh(menuPanel));
+        playerVsMachine.addActionListener(e -> {
+            gameModeName = "pvm";
+            preparePlayersBeforeGame();
+        });
+
+        survival.addActionListener(e -> {
+            gameModeName = "survival";
+            preparePlayersBeforeGame();
+        });
+        machines.addActionListener(e -> {
+            gameModeName = "mvm";
+            preparePlayersBeforeGame();
+        });
+        backButtonMenu.addActionListener(e -> refresh(menuPanel));
     }
-    private void choosePokemon() {
-    	JPanel choosePokemonPanel = new ImagePanel(new BorderLayout(), selectionPanel);
-    	choosePokemonPanel.setOpaque(false);
-	    ArrayList<Integer> selectedPokemons1 = new ArrayList<>();
-	    ArrayList<Integer> selectedPokemons2 = new ArrayList<>();
 
-	    JLabel pokemonImage = new JLabel();
-	    pokemonImage.setHorizontalAlignment(JLabel.CENTER);
-	    pokemonImage.setPreferredSize(new Dimension(200, 200));
-	    //
-	    JLabel turnLabel = new JLabel("Jugador 1 elige", JLabel.CENTER);
-	    turnLabel.setOpaque(true);  // Esto es crucial para que el fondo sea visible
-	    turnLabel.setBackground(new Color(50, 50, 50));
-	    turnLabel.setFont(cargarFuentePixel(18));
-	    turnLabel.setForeground(Color.blue);
-	    choosePokemonPanel.add(turnLabel, BorderLayout.NORTH);
-	    //
-	    JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Back",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
-	    JButton addButton = Auxiliar.crearBotonEstilizado("Añadir", new Rectangle(275, 100, 200, 60), new Color(240, 240, 240, 200));
-	    //addButton.setBackground(new Color(200, 200, 200, 150));
-	    addButton.setVisible(false);
-	    JPanel leftContent = new JPanel(new BorderLayout());
-	    leftContent.setOpaque(false);
-	    JPanel leftContentPanel = new JPanel(new BorderLayout());
-	    leftContentPanel.setOpaque(false);
-	    leftContentPanel.add(pokemonImage,BorderLayout.CENTER);
-	    leftContentPanel.add(addButton,BorderLayout.SOUTH);
-	    leftContent.add(leftContentPanel,BorderLayout.CENTER);
-        JPanel panelSur = new JPanel(new BorderLayout());
-        panelSur.setOpaque(false);
-        panelSur.add(new JLabel(" "), BorderLayout.SOUTH);
-        panelSur.add(backButtonGameMode, BorderLayout.CENTER);
-        //panelSur.add(new JLabel(" "), BorderLayout.WEST);
-	    JPanel leftPanel = new JPanel(new BorderLayout());
-	    leftPanel.setOpaque(false);
-	    leftPanel.setPreferredSize(new Dimension((int) (getWidth() * 0.25), getHeight()));
-	    leftPanel.add(leftContent,BorderLayout.CENTER);
-	    leftPanel.add(panelSur, BorderLayout.SOUTH);
-	    //
-	    ImageIcon Character = new ImageIcon(CHARACTER + "Bruno.png");
-        ImageIcon scaledCharacter = Auxiliar.scaleIcon(Character, 192, 192);
-        JLabel characterImage = new JLabel(scaledCharacter);
-        characterImage.setHorizontalAlignment(JLabel.CENTER);
+    private void preparePlayersBeforeGame(){ // Revisar diseño, si se le puede mejorar
+        String titleMessage = "";
+        playersPanel = new JPanel(new BorderLayout()) {
+            private ImageIcon gifPlayers = new ImageIcon(MENU + "fondoPre3.gif");
+            protected void paintComponent(Graphics g) {
+                g.drawImage(gifPlayers.getImage(), 0, 0, getWidth(), getHeight(), this);
+                super.paintComponent(g);
+            }
+        };
+        playersPanel.setOpaque(false);
 
-        ImageIcon originalball = new ImageIcon(MENU + "ball_display_" + selectedPokemons1.size() + ".png");
-        ImageIcon scaledoriginalball = Auxiliar.scaleIcon(originalball, 141, 21);
-        JLabel counterImage = new JLabel(scaledoriginalball);
-        counterImage.setHorizontalAlignment(JLabel.CENTER);
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(null);
+        centerPanel.setOpaque(false);
 
-        ImageIcon Character2 = new ImageIcon(CHARACTER + "Aura.png");
-        ImageIcon scaledCharacter2 = Auxiliar.scaleIcon(Character2, 192, 192);
-        JLabel characterImage2 = new JLabel(scaledCharacter2);
-        characterImage2.setHorizontalAlignment(JLabel.CENTER);
+        switch (gameModeName) {
+            case "pvp", "survival" -> titleMessage = "Elige los nombres de los jugadores";
+            case "pvm" -> titleMessage = "Elige nombres del jugador y maquina";
+            case "mvm" -> titleMessage = "Elige los nombres de las maquinas";
+        }
 
-        ImageIcon originalball2 = new ImageIcon(MENU + "ball_display_" + selectedPokemons2.size() + ".png");
-        ImageIcon scaledoriginalball2 = Auxiliar.scaleIcon(originalball2, 141, 21);
-        JLabel counterImage2 = new JLabel(scaledoriginalball2);
-        counterImage2.setHorizontalAlignment(JLabel.CENTER);
+        JLabel titleLabel = new JLabel(titleMessage, JLabel.CENTER);
+        titleLabel.setFont(cargarFuentePixel(25));
+        titleLabel.setForeground(Color.white);
+        titleLabel.setBounds(65, 12, 600, 50);
 
-        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(275, 100, 100, 60), new Color(240, 240, 240, 200));
-        doneButton.setBackground(new Color(200, 200, 200, 150));
-        doneButton.setVisible(false);
-        JPanel rightContent = new JPanel(new GridBagLayout());
-        rightContent.setOpaque(false);
-        JPanel rightContentPanel = new JPanel(new BorderLayout());
-        rightContentPanel.setOpaque(false);
-        rightContentPanel.add(characterImage,BorderLayout.NORTH);
-        rightContentPanel.add(counterImage,BorderLayout.CENTER);
-        rightContentPanel.add(doneButton,BorderLayout.SOUTH);
-        rightContent.add(rightContentPanel);
 
-        JPanel rightPanel = new JPanel(new BorderLayout());
-	    rightPanel.setOpaque(false);
-	    rightPanel.setPreferredSize(new Dimension((int) (getWidth() * 0.25), getHeight()));
-	    rightPanel.add(rightContent,BorderLayout.CENTER);
-	    //
-	    JPanel centerPanel = new JPanel(new BorderLayout());
-	    centerPanel.setOpaque(false);
+        ImageIcon titleImage =  new ImageIcon(FRAME + "4.png");
+        Image scaledTitleImage = titleImage.getImage().getScaledInstance(600, 60, Image.SCALE_SMOOTH);
+        JButton titleLabelButton = new JButton(new ImageIcon(scaledTitleImage));
+        titleLabelButton.setBounds(0, 10, 740, 60);
+        titleLabelButton.setBorderPainted(false);
+        titleLabelButton.setContentAreaFilled(false);
 
-	    ImagePanel gridPanel = new ImagePanel(new GridLayout(0, 5, 0, 0), MENU + "blue.png");
+        ImageIcon p1 = new ImageIcon(CHARACTER + "Bruno.png");
+        ImageIcon p2 = new ImageIcon(CHARACTER + "Aura.png");
 
-	    JScrollPane scrollPane = new JScrollPane(gridPanel);
-	    scrollPane.setPreferredSize(new Dimension(300, 400));
-	    scrollPane.setOpaque(false);
-	    scrollPane.getViewport().setOpaque(false);
-	    scrollPane.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3));
-	    scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        Image scaledP1 = p1.getImage().getScaledInstance(200, 200, Image.SCALE_SMOOTH);
+        Image scaledP2 = p2.getImage().getScaledInstance(200, 200, Image.SCALE_SMOOTH);
 
-	    InputMap inputMap = scrollPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-	    ActionMap actionMap = scrollPane.getActionMap();
-	    inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0), "up");
-	    inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "down");
-	    actionMap.put("up", new AbstractAction() {
-	        @Override
-	        public void actionPerformed(ActionEvent e) {
-	            JScrollBar vertical = scrollPane.getVerticalScrollBar();
-	            vertical.setValue(vertical.getValue() - vertical.getUnitIncrement());
-	        }
-	    });
-	    actionMap.put("down", new AbstractAction() {
-	        @Override
-	        public void actionPerformed(ActionEvent e) {
-	            JScrollBar vertical = scrollPane.getVerticalScrollBar();
-	            vertical.setValue(vertical.getValue() + vertical.getUnitIncrement());
-	        }
-	    });
+        JButton p1Button = new JButton(new ImageIcon(scaledP1));
+        JButton p2Button = new JButton(new ImageIcon(scaledP2));
 
-	    JPanel scrollContainer = new JPanel();
-	    scrollContainer.setOpaque(false);
-	    scrollContainer.setLayout(new BoxLayout(scrollContainer, BoxLayout.Y_AXIS));
-	    scrollContainer.add(Box.createVerticalGlue());
-	    scrollContainer.add(scrollPane);
-	    scrollContainer.add(Box.createVerticalGlue());
-	    centerPanel.add(scrollContainer, BorderLayout.CENTER);
+        p1Button.setBounds(120, 150, 200, 200);
+        p2Button.setBounds(430, 150, 200, 200);
 
-	    for (int i = 1; i <= 386; i++) {
-	        final int pokemonId = i;
-	        JButton pokemonButton = createImageButton(POKEMONES + "Icon/" + i + ".png", 1, 1, 50, 50);
-	        pokemonButton.setOpaque(false);
-	        pokemonButton.setContentAreaFilled(false);
-	        pokemonButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3));
-	        pokemonButton.setFocusPainted(true);
+        p1Button.setBorderPainted(false);
+        p2Button.setBorderPainted(false);
 
-	        pokemonButton.addActionListener(e -> {
-	            ImageIcon original = new ImageIcon(POKEMONES + "Normal/" + pokemonId + ".png");
-	            Image scaled = original.getImage().getScaledInstance(138, 138, Image.SCALE_SMOOTH);
-	            pokemonImage.setIcon(new ImageIcon(scaled));
-	            addButton.setVisible(true);
+        p1Button.setContentAreaFilled(false);
+        p2Button.setContentAreaFilled(false);
 
-	            for (ActionListener al : addButton.getActionListeners()) {
-	                addButton.removeActionListener(al);
-	            }
+        // Campos para jugador 1
+        JLabel player1Label = new JLabel("Jugador 1:");
+        player1Label.setFont(cargarFuentePixel(20));
+        player1Label.setForeground(Color.white);
+        player1Label.setBounds(150, 140, 150, 30);
 
-	            addButton.addActionListener(ev -> {
-	                if (selectedPokemons1.size() < 6) {
-	                    selectedPokemons1.add(pokemonId);
-	                    ImageIcon originalMoreball = new ImageIcon(MENU + "ball_display_" + selectedPokemons1.size() + ".png");
-	                    Image scaledMoreball = originalMoreball.getImage().getScaledInstance(141, 21, Image.SCALE_SMOOTH);
-	                    counterImage.setIcon(new ImageIcon(scaledMoreball));
+        player1Field = new JTextField();
+        player1Field.setFont(cargarFuentePixel(20));
+        player1Field.setBounds(120, 360, 200, 30);
 
-	                    if (selectedPokemons1.size() == 6) {
-	                    	rightContentPanel.removeAll();
-	                        rightContentPanel.add(characterImage2, BorderLayout.NORTH);
-	                        rightContentPanel.add(counterImage2, BorderLayout.CENTER);
-	                        rightContentPanel.add(doneButton, BorderLayout.SOUTH);
-	                        rightContentPanel.revalidate();
-	                        rightContentPanel.repaint();
-	                        gridPanel.setBackgroundImage(MENU + "red.png");
-	                        turnLabel.setText("Jugador 1 elige");
-	                        turnLabel.setForeground(new Color(255, 100, 100));
-	                    }
-	                } else if (selectedPokemons1.size() == 6 && selectedPokemons2.size() < 6) {
-	                    selectedPokemons2.add(pokemonId);
-	                    ImageIcon originalMoreball = new ImageIcon(MENU + "ball_display_" + selectedPokemons2.size() + ".png");
-	                    Image scaledMoreball = originalMoreball.getImage().getScaledInstance(141, 21, Image.SCALE_SMOOTH);
-	                    counterImage2.setIcon(new ImageIcon(scaledMoreball));
+        // Campos para jugador 2
+        JLabel player2Label = new JLabel("Jugador 2:");
+        player2Label.setFont(cargarFuentePixel(20));
+        player2Label.setForeground(Color.white);
+        player2Label.setBounds(460, 140, 150, 30);
 
-	                    if (selectedPokemons2.size() == 6 && !doneButton.isVisible()) {
-	                    	gridPanel.setBackgroundImage(MENU + "white.png");
-	                        turnLabel.setText("Presione Listo");
-	                        turnLabel.setForeground(Color.white);
-	                        doneButton.setVisible(true);
-	                    }
+        player2Field = new JTextField();
+        player2Field.setFont(cargarFuentePixel(20));
+        player2Field.setBounds(420, 360, 200, 30);
 
-	                }
-	                else if (selectedPokemons1.size() == 6 && selectedPokemons2.size() == 6 && doneButton.isVisible()) {
-                    	Auxiliar.mostrarError("Pokemones completos","Porfavor Dar en Listo");
+        switch (gameModeName){
+            case "pvp", "survival" -> {
+                player1Label.setText("Jugador 1:");
+                player2Label.setText("Jugador 2:");
+            }
+            case "pvm" -> {
+                player1Label.setText(" Jugador:");
+                player2Label.setText(" Maquina:");
+            }
+            case "mvm" -> {
+                player1Label.setText("Maquina 1:");
+                player2Label.setText("Maquina 2:");
+            }
+        }
+
+
+        backButtonMenu = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(10, 450, 80, 25),new Color(240, 240, 240, 200));
+        startButton = Auxiliar.crearBotonEstilizado("Siguiente", new Rectangle(605, 450, 120, 25), new Color(240, 240, 240, 200));
+        centerPanel.add(titleLabel);
+        centerPanel.add(titleLabelButton);
+        centerPanel.add(p1Button);
+        centerPanel.add(p2Button);
+        centerPanel.add(player1Label);
+        centerPanel.add(player2Label);
+        centerPanel.add(player1Field);
+        centerPanel.add(player2Field);
+        centerPanel.add(backButtonMenu);
+        centerPanel.add(startButton);
+
+        playersPanel.add(centerPanel, BorderLayout.CENTER);
+        prepareActionsPlayersBeforeGame();
+        refresh(playersPanel);
+    }
+
+    private void prepareActionsPlayersBeforeGame() {
+        startButton.addActionListener(e -> {
+            player1Name = player1Field.getText().trim();
+            player2Name = player2Field.getText().trim();
+
+            if (player1Name.isEmpty() || player2Name.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Por favor ingresa nombres para ambos jugadores", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (player1Name.equals(player2Name)) {
+                JOptionPane.showMessageDialog(this, "Los nombres de los jugadores no pueden ser iguales", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (player1Name.length() > 10 || player2Name.length() > 10) {
+                JOptionPane.showMessageDialog(this, "Los nombres no pueden tener mas de 10 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            } else if (player1Name.length() < 3 || player2Name.length() < 3) {
+                JOptionPane.showMessageDialog(this, "Los nombres no pueden tener menos de 3 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            switch (gameModeName){ //Revisar si afecta el juego
+                case("pvp") -> {
+                    createTrainers("Player1","Player2");
+                    prepareItem();
+                    choosePokemon();
+                }
+                case("pvm") -> {
+                    String machine = chooseMachine("Escoge maquina","Por escoger una maquina");
+                    createTrainers("Player1",machine);
+                    prepareItem();
+                    choosePokemon();
+                }
+                case("survival") -> {
+                    createTrainers("Player1","Player2");
+                    if(booleanInput("Quiere inicial partida en survival?")) {
+                        createDataForGame();
+                        showTimer("s");
                     }
-
-	                // Aquí es donde ocultamos la imagen y el botón
-	                pokemonImage.setIcon(null);  // Elimina la imagen mostrada
-	                addButton.setVisible(false); // Oculta el botón Añadir
-	            });
-	        });
-
-	        gridPanel.add(pokemonButton);
-	    }
-
-	    backButtonGameMode.addActionListener(e -> refresh(gameMode));
-	    doneButton.addActionListener(ev -> {
-	    	assingPokemon(selectedPokemons1, selectedPokemons2);
-	    	chooseMoves();
-	    	});
-	    choosePokemonPanel.add(leftPanel, BorderLayout.WEST);
-	    choosePokemonPanel.add(centerPanel, BorderLayout.CENTER);
-	    choosePokemonPanel.add(rightPanel, BorderLayout.EAST);
-
-	    setContentPane(choosePokemonPanel);
-	    revalidate();
-	    repaint();
+                }
+                case("mvm") -> {
+                    String machine1 = chooseMachine("Escoge maquina1","Por escoger una maquina");
+                    String machine2 = chooseMachine("Escoge maquina2","Por escoger una maquina");
+                    createTrainers(machine1+"1",machine2+"2");
+                    prepareItem();
+                    choosePokemon();
+                }
+            }
+        });
+        backButtonMenu.addActionListener(e -> refresh(gameMode));
     }
+
+    private void choosePokemon() { //Estudiar Codigo
+        choosePokemonPanel = new JPanel(new BorderLayout()){
+            private ImageIcon gifBg = new ImageIcon(MENU + "fondoPre7.png");
+            @Override
+            protected void paintComponent(Graphics g) {
+                g.drawImage(gifBg.getImage(), 0, 0, getWidth(), getHeight(), this);
+                super.paintComponent(g);
+            }
+        };
+        choosePokemonPanel.setOpaque(false);
+        choosePokemonPanel.setLayout(null);
+
+        ArrayList<Integer> selectedPokemons1 = new ArrayList<>();
+        ArrayList<Integer> selectedPokemons2 = new ArrayList<>();
+        final int[] currentPlayer = {1};
+
+        // Título
+        JLabel titleLabel = new JLabel("Elige los pokemones", JLabel.LEFT);
+        titleLabel.setFont(cargarFuentePixel(25));
+        titleLabel.setForeground(Color.white);
+        titleLabel.setBounds(30, 10, 400, 60);
+        choosePokemonPanel.add(titleLabel);
+
+        // Marco del título
+        JButton titleFrame = new JButton(new ImageIcon(new ImageIcon(FRAME + "4.png").getImage()
+                .getScaledInstance(340, 60, Image.SCALE_SMOOTH)));
+        titleFrame.setBounds(10, 10, 340, 60);
+        titleFrame.setBorderPainted(false);
+        titleFrame.setContentAreaFilled(false);
+        choosePokemonPanel.add(titleFrame);
+
+        // Etiqueta del turno
+        JLabel turnLabel = new JLabel(player1Name + " elige: ", JLabel.LEFT);
+        turnLabel.setFont(cargarFuentePixel(22));
+        turnLabel.setForeground(Color.black);
+        turnLabel.setBounds(55, 335, 220, 35);
+        choosePokemonPanel.add(turnLabel);
+
+        // Personaje actual
+        JLabel characterImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Bruno.png"), 250, 250));
+        characterImage.setBounds(20, 95, 250, 250);
+        choosePokemonPanel.add(characterImage);
+
+        // Grid de Pokémon
+        JPanel gridPanel = new JPanel(new GridLayout(0, 6, 5, 5));
+        gridPanel.setOpaque(false);
+        gridPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // ScrollPane
+        JScrollPane scrollPane = new JScrollPane(gridPanel);
+        scrollPane.setBounds(275, 85, 450, 350);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 100), 3),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
+        verticalBar.setUnitIncrement(16);
+        verticalBar.setPreferredSize(new Dimension(10, 0));
+
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        choosePokemonPanel.add(scrollPane);
+
+        // Botones de navegación
+        JButton backButton = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30),
+                new Color(240, 240, 240, 200));
+        choosePokemonPanel.add(backButton);
+
+        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(630, 450, 100, 30),
+                new Color(240, 240, 240, 200));
+        doneButton.setVisible(false);
+        choosePokemonPanel.add(doneButton);
+
+        // Añadir Pokémon a la grid con diseño mejorado
+        for (int i = 1; i <= 386; i++) {
+            final int pokemonId = i;
+            JButton pokemonButton = createImageButton(POKEMONES + "Icon/" + i + ".png", 1, 1, 50, 50);
+            pokemonButton.setOpaque(false);
+            pokemonButton.setContentAreaFilled(false);
+            pokemonButton.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(255, 255, 255, 100), 2),
+                    BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            ));
+
+            pokemonButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    pokemonButton.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(new Color(255, 255, 255, 200), 2),
+                            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                    ));
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    pokemonButton.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(new Color(255, 255, 255, 100), 2),
+                            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                    ));
+                }
+            });
+
+            pokemonButton.addActionListener(e -> {
+                ArrayList<Integer> currentSelection = currentPlayer[0] == 1 ? selectedPokemons1 : selectedPokemons2;
+
+                if (currentSelection.size() < 6) {
+                    currentSelection.add(pokemonId);
+                    pokemonButton.setEnabled(false);
+
+                    if (currentSelection.size() == 6) {
+                        if (currentPlayer[0] == 1) {
+                            // Cambiar al jugador 2
+                            currentPlayer[0] = 2;
+                            turnLabel.setText(player2Name + " elige: ");
+                            characterImage.setIcon(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Aura.png"), 250, 250));
+
+                            // Deshabilitar solo los Pokémon seleccionados por el jugador 1
+                            Component[] components = gridPanel.getComponents();
+                            for (Component comp : components) {
+                                if (comp instanceof JButton) {
+                                    JButton btn = (JButton) comp;
+                                    int btnId = components.length - Arrays.asList(components).indexOf(btn);
+                                    if (selectedPokemons1.contains(btnId)) {
+                                        btn.setEnabled(false);
+                                    } else {
+                                        btn.setEnabled(true); // Habilitar el resto de botones
+                                    }
+                                }
+                            }
+                        } else {
+                            doneButton.setVisible(true);
+                        }
+                    }
+                }
+            });
+            gridPanel.add(pokemonButton);
+        }
+
+        // Eventos de botones
+        backButton.addActionListener(e -> {
+            choosePokemonPanel.removeAll();
+            refresh(playersPanel);
+        });
+
+        doneButton.addActionListener(e -> {
+            assingPokemon(selectedPokemons1, selectedPokemons2);
+            chooseMoves();
+        });
+        setContentPane(choosePokemonPanel);
+        revalidate();
+        repaint();
+    }
+
     private void chooseMoves() {
-        JPanel chooseMovesPanel = new ImagePanel(new BorderLayout(), selectionPanel);
+        chooseMovesPanel = new JPanel(new BorderLayout()) {
+            private ImageIcon gifBg = new ImageIcon(MENU + "fondoPre7.png");
+            @Override
+            protected void paintComponent(Graphics g) {
+                g.drawImage(gifBg.getImage(), 0, 0, getWidth(), getHeight(), this);
+                super.paintComponent(g);
+            }
+        };
         chooseMovesPanel.setOpaque(false);
+        chooseMovesPanel.setLayout(null);
+
         ArrayList<Integer> selectedMoves1 = new ArrayList<>();
         ArrayList<Integer> selectedMoves2 = new ArrayList<>();
         ArrayList<Integer> pokemones = new ArrayList<>();
+
         pokemones.addAll(this.pokemones.get(players.get(0)));
         pokemones.addAll(this.pokemones.get(players.get(1)));
 
-        JLabel pokemonImage = new JLabel();
-        pokemonImage.setHorizontalAlignment(JLabel.CENTER);
-        pokemonImage.setPreferredSize(new Dimension(200, 200));
+        // Título
+        JLabel titleLabel = new JLabel("Elige los movimientos", JLabel.LEFT);
+        titleLabel.setFont(cargarFuentePixel(25));
+        titleLabel.setForeground(Color.white);
+        titleLabel.setBounds(30, 10, 400, 60);
+        chooseMovesPanel.add(titleLabel);
 
-        JLabel turnLabel = new JLabel("Jugador 1 elige", JLabel.CENTER);
-        turnLabel.setOpaque(true);
-        turnLabel.setBackground(new Color(50, 50, 50));
-        turnLabel.setFont(cargarFuentePixel(18));
-        turnLabel.setForeground(Color.blue);
-        chooseMovesPanel.add(turnLabel, BorderLayout.NORTH);
+        // Marco del título
+        JButton titleFrame = new JButton(new ImageIcon(new ImageIcon(FRAME + "4.png").getImage().getScaledInstance(350, 60, Image.SCALE_SMOOTH)));
+        titleFrame.setBounds(10, 10, 360, 60);
+        titleFrame.setBorderPainted(false);
+        titleFrame.setContentAreaFilled(false);
+        chooseMovesPanel.add(titleFrame);
 
-        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Back", new Rectangle(275, 100, 20, 60), new Color(240, 240, 240, 200));
-        JButton addButton = Auxiliar.crearBotonEstilizado("Añadir", new Rectangle(275, 100, 200, 60), new Color(240, 240, 240, 200));
-        addButton.setVisible(false);
+        // Etiqueta del turno
+        JLabel turnLabel = new JLabel(player1Name + " elige para:", JLabel.CENTER);
+        turnLabel.setFont(cargarFuentePixel(22));
+        turnLabel.setForeground(Color.black);
+        turnLabel.setBounds(15, 230, 250, 35);
+        chooseMovesPanel.add(turnLabel);
 
-        JPanel leftContent = new JPanel(new BorderLayout());
-        leftContent.setOpaque(false);
-        JPanel leftContentPanel = new JPanel(new BorderLayout());
-        leftContentPanel.setOpaque(false);
-        leftContentPanel.add(pokemonImage, BorderLayout.CENTER);
-        leftContentPanel.add(addButton, BorderLayout.SOUTH);
-        leftContent.add(leftContentPanel, BorderLayout.CENTER);
+        JLabel characterImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Bruno.png"), 150, 150));
+        characterImage.setBounds(50, 75, 150, 150);
+        chooseMovesPanel.add(characterImage);
 
-        JPanel panelSur = new JPanel(new BorderLayout());
-        panelSur.setOpaque(false);
-        panelSur.add(new JLabel(" "), BorderLayout.SOUTH);
-        panelSur.add(backButtonGameMode, BorderLayout.CENTER);
-        //panelSur.add(new JLabel(" "), BorderLayout.WEST);
+        JLabel characterImage2 = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Aura.png"), 150, 150));
+        characterImage2.setBounds(50, 75, 150, 150);
+        characterImage2.setVisible(false);
+        chooseMovesPanel.add(characterImage2);
 
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setOpaque(false);
-        leftPanel.setPreferredSize(new Dimension((int) (getWidth() * 0.20), getHeight()));
-        leftPanel.add(leftContent, BorderLayout.CENTER);
-        leftPanel.add(panelSur, BorderLayout.SOUTH);
+        // Panel para la imagen del Pokémon actual
+        JLabel pokemonImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(NORMAL_PATH + pokemones.get(0) + ".png"), 150, 150));
+        pokemonImage.setBounds(50, 270, 150, 150);
+        chooseMovesPanel.add(pokemonImage);
 
-        ImageIcon Character = new ImageIcon(CHARACTER + "Bruno.png");
-        ImageIcon scaledCharacter = Auxiliar.scaleIcon(Character, 192, 192);
-        JLabel characterImage = new JLabel(scaledCharacter);
-        characterImage.setHorizontalAlignment(JLabel.CENTER);
+        // Grid de movimientos
+        JPanel gridPanel = new JPanel(new GridLayout(0, 1, 5, 5));
+        gridPanel.setOpaque(false);
+        gridPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        ImageIcon Character2 = new ImageIcon(CHARACTER + "Aura.png");
-        ImageIcon scaledCharacter2 = Auxiliar.scaleIcon(Character2, 192, 192);
-        JLabel characterImage2 = new JLabel(scaledCharacter2);
-        characterImage2.setHorizontalAlignment(JLabel.CENTER);
-
-        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(275, 100, 200, 60), new Color(240, 240, 240, 200));
-        doneButton.setBackground(new Color(200, 200, 200, 150));
-        doneButton.setVisible(false);
-
-        JPanel rightContent = new JPanel(new GridBagLayout());
-        rightContent.setOpaque(false);
-        JPanel rightContentPanel = new JPanel(new BorderLayout());
-        rightContentPanel.setOpaque(false);
-        rightContentPanel.add(characterImage, BorderLayout.NORTH);
-        rightContentPanel.add(doneButton, BorderLayout.SOUTH);
-        rightContent.add(rightContentPanel);
-
-        JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setOpaque(false);
-        rightPanel.setPreferredSize(new Dimension((int) (getWidth() * 0.20), getHeight()));
-        rightPanel.add(rightContent, BorderLayout.CENTER);
-
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setOpaque(false);
-
-        ImagePanel gridPanel = new ImagePanel(new GridLayout(0, 1, 0, 0), MENU + "blue.png");
-
+        // ScrollPane
         JScrollPane scrollPane = new JScrollPane(gridPanel);
-        scrollPane.setPreferredSize(new Dimension(300, 400));
+        scrollPane.setBounds(275, 85, 450, 350);
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3));
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0, 0, 0, 100), 3),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
 
-        InputMap inputMap = scrollPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        ActionMap actionMap = scrollPane.getActionMap();
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0), "up");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "down");
-        actionMap.put("up", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getValue() - vertical.getUnitIncrement());
-            }
-        });
-        actionMap.put("down", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getValue() + vertical.getUnitIncrement());
-            }
-        });
+        // Configurar scrollbar
+        JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
+        verticalBar.setUnitIncrement(16);
+        verticalBar.setPreferredSize(new Dimension(10, 0));
 
-        JPanel scrollContainer = new JPanel();
-        scrollContainer.setOpaque(false);
-        scrollContainer.setLayout(new BoxLayout(scrollContainer, BoxLayout.Y_AXIS));
-        scrollContainer.add(Box.createVerticalGlue());
-        scrollContainer.add(scrollPane);
-        scrollContainer.add(Box.createVerticalGlue());
-        centerPanel.add(scrollContainer, BorderLayout.CENTER);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        chooseMovesPanel.add(scrollPane);
+
+        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30), new Color(240, 240, 240, 200));
+        chooseMovesPanel.add(backButtonGameMode);
+
+        JButton addButton = Auxiliar.crearBotonEstilizado("Añadir", new Rectangle(630, 450, 100, 30), new Color(240, 240, 240, 200));
+        addButton.setVisible(false);
+        chooseMovesPanel.add(addButton);
+
+
+        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(630, 450, 100, 30), new Color(240, 240, 240, 200));
+        doneButton.setBackground(new Color(200, 200, 200, 150));
+        doneButton.setVisible(false);
+        chooseMovesPanel.add(doneButton);
+
         final int[] pokemonActualIndex = {0};
         ArrayList<ArrayList<Component>> buttonsPerPokemon = new ArrayList<>();
         ArrayList<ArrayList<String[]>> moves = new ArrayList<>();
@@ -899,73 +1189,64 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
                             if (selectedMoves1.size() % 4 == 0) {
                                 pokemonActualIndex[0]++;
-                                actualizarGrid(gridPanel,pokemonActualIndex[0],buttonsPerPokemon);
-                                if (pokemonActualIndex[0] < pokemones.size()) {
-                                    ImageIcon pk = new ImageIcon(POKEMONES + "Normal/" + pokemones.get(pokemonActualIndex[0]) + ".png");
-                                    Image pkscaled = pk.getImage().getScaledInstance(138, 138, Image.SCALE_SMOOTH);
+
+                                if (pokemonActualIndex[0] < pokemones.size() / 2) {
+                                    ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
+                                    Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
                                     pokemonImage.setIcon(new ImageIcon(pkscaled));
-                                    leftContentPanel.revalidate();
-                                    leftContentPanel.repaint();
                                 }
                             }
 
                             if (selectedMoves1.size() == 24) {
-                                rightContentPanel.removeAll();
-                                rightContentPanel.add(characterImage2, BorderLayout.NORTH);
-                                rightContentPanel.add(doneButton, BorderLayout.SOUTH);
-                                rightContentPanel.revalidate();
-                                rightContentPanel.repaint();
-                                gridPanel.setBackgroundImage(MENU + "red.png");
-                                turnLabel.setText("Jugador 2 elige");
-                                turnLabel.setForeground(new Color(255, 100, 100));
+                                characterImage.setVisible(false);
+                                characterImage2.setVisible(true);
+                                pokemonActualIndex[0] = pokemones.size() / 2;
+                                ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
+                                Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
+                                pokemonImage.setIcon(new ImageIcon(pkscaled));
+                                turnLabel.setText(player2Name + " elige para: ");
                             }
 
+                            addButton.setVisible(false);
                         } else if (selectedMoves1.size() == 24 && selectedMoves2.size() < 24) {
                             selectedMoves2.add(Integer.valueOf(movesPokemon.get(pokemonId)[0]));
+
                             if (selectedMoves2.size() % 4 == 0) {
                                 pokemonActualIndex[0]++;
-                                if(selectedMoves2.size() <23){
-                                    actualizarGrid(gridPanel,pokemonActualIndex[0],buttonsPerPokemon);}
+
                                 if (pokemonActualIndex[0] < pokemones.size()) {
-                                    ImageIcon pk = new ImageIcon(POKEMONES + "Normal/" + pokemones.get(pokemonActualIndex[0]) + ".png");
-                                    Image pkscaled = pk.getImage().getScaledInstance(138, 138, Image.SCALE_SMOOTH);
+                                    ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
+                                    Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
                                     pokemonImage.setIcon(new ImageIcon(pkscaled));
-                                    leftContentPanel.revalidate();
-                                    leftContentPanel.repaint();
+                                }
+
+                                // Si se completaron todos los movimientos
+                                if (selectedMoves2.size() == 24) {
+
+                                    doneButton.setVisible(true);
+                                    assingMoves(selectedMoves1, selectedMoves2);
+                                    chooseItems();
+                                    return;
                                 }
                             }
-                            if (selectedMoves2.size() == 24 && !doneButton.isVisible()) {
-                                gridPanel.removeAll();
-                                gridPanel.setBackgroundImage(MENU + "white.png");
-                                turnLabel.setText("Presione Listo");
-                                turnLabel.setForeground(Color.white);
-                                doneButton.setVisible(true);
-                            }
-
-                        } else if (selectedMoves1.size() == 24 && selectedMoves2.size() == 24 && doneButton.isVisible()) {
-                            Auxiliar.mostrarError("movimientos completos", "Porfavor Dar en Listo");
+                            addButton.setVisible(false);
                         }
-
-                        addButton.setVisible(false);
                     });
                 });
                 buttons.add(pokemonButton);
             }
             buttonsPerPokemon.add(buttons);
         }
+
         for (Component component: buttonsPerPokemon.get(pokemonActualIndex[0])){
             gridPanel.add(component);
         }
-
 
         backButtonGameMode.addActionListener(e -> choosePokemon());
         doneButton.addActionListener(ev -> {
             assingMoves(selectedMoves1, selectedMoves2);
             chooseItems();
         });
-        chooseMovesPanel.add(leftPanel, BorderLayout.WEST);
-        chooseMovesPanel.add(centerPanel, BorderLayout.CENTER);
-        chooseMovesPanel.add(rightPanel, BorderLayout.EAST);
 
         setContentPane(chooseMovesPanel);
         revalidate();
@@ -979,18 +1260,17 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         }
     }
     private void chooseItems() {
-        prepareItem();
-        JPanel chooseItemsPanel = new ImagePanel(new BorderLayout(), selectionPanel);
+        JPanel chooseItemsPanel = new ImagePanel(new BorderLayout(), MENU + "fondoPre7.png");
         chooseItemsPanel.setOpaque(false);
         //
-        JLabel turnLabel = new JLabel("Jugador 1 elige", JLabel.CENTER);
+        JLabel turnLabel = new JLabel(player1Name + "elige", JLabel.CENTER);
         turnLabel.setOpaque(true);  // Esto es crucial para que el fondo sea visible
         turnLabel.setBackground(new Color(50, 50, 50));
         turnLabel.setFont(cargarFuentePixel(18));
         turnLabel.setForeground(Color.blue);
         chooseItemsPanel.add(turnLabel, BorderLayout.NORTH);
         //
-        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Back",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
+        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
         //
         JPanel panelSur = new JPanel(new BorderLayout());
         panelSur.setOpaque(false);
@@ -1128,7 +1408,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 rightContentPanel.revalidate();
                 rightContentPanel.repaint();
                 gridPanel.setBackgroundImage(MENU + "red.png");
-                turnLabel.setText("Jugador 1 elige");
+                turnLabel.setText(player1Name + "elige");
                 turnLabel.setForeground(new Color(255, 100, 100));
                 contador[0]++;
             }else{
@@ -1239,7 +1519,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 } else {
                     animationTimer.stop();
                     detenerSonido();
-                    
+
                 }
             }
         });
@@ -1270,7 +1550,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             throw new RuntimeException(e);
         }
         JPanel FishPanel = new ImagePanel(new BorderLayout(), WINNER+winnerId+PNG_EXT);
-        JLabel message = new JLabel("Jugador "+winnerId+" a ganado", SwingConstants.CENTER);
+        JLabel message = new JLabel("Jugador " +winnerId+" a ganado", SwingConstants.CENTER);
         message.setFont(Auxiliar.cargarFuentePixel(30));
         message.setForeground(Color.WHITE);
         FishPanel.add(message, BorderLayout.CENTER);
@@ -1448,22 +1728,22 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 "Confirmación",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
-                new ImageIcon("resources/icon/gear.png")
+                new ImageIcon("resources/icon/confirmationGif.gif")
         );
-    	boolean resultado = (respuesta == JOptionPane.YES_OPTION);
-    	return resultado;
+        boolean resultado = (respuesta == JOptionPane.YES_OPTION);
+        return resultado;
     }
     private static Font cargarFuentePixel(float tamaño) {
         try {
             Font fuenteBase = Font.createFont(Font.TRUETYPE_FONT,
-                new File("resources/fonts/themevck-text.ttf"));
+                    new File("resources/fonts/themevck-text.ttf"));
             Font fuenteNegrita = fuenteBase.deriveFont(Font.BOLD, tamaño);
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
             ge.registerFont(fuenteNegrita);
             return fuenteNegrita;
 
         } catch (FontFormatException | IOException e) {
-			Log.record(e);
+            Log.record(e);
             return new Font("Monospaced", Font.BOLD, (int)tamaño);
         }
     }
@@ -1486,7 +1766,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     //Metodos de los botones.
     private void actualizarTextoDificultad() {
 
-    	random = !random;
+        random = !random;
         stastRandomButton.setText(random ? "Stat Aleatorios" : "Stat Base");
 
         // Efecto visual de cambio
@@ -1536,7 +1816,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         }
     }
     private void startNewGame() {
-    	refresh(gameMode);
+        refresh(gameMode);
     }
     private void openGame() {
         JFileChooser fileChooser = new JFileChooser();
@@ -1572,7 +1852,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 "¿Estás seguro de que quieres salir?",
                 "Confirmar salida",
                 JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE,new ImageIcon(APP_ICON));
+                JOptionPane.QUESTION_MESSAGE,new ImageIcon(EXIT_ICON));
 
         if (option == JOptionPane.YES_OPTION) {
             System.exit(0);
@@ -1580,28 +1860,28 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     }
     //
     private void createDataForGame(){
-    	createPokemones();
-    	createMoves();
+        createPokemones();
+        createMoves();
         prepareItem();
     }
     private void createPokemones(){
-    	ArrayList<Integer> pokemones1 = new ArrayList<>();
-    	ArrayList<Integer> pokemones2 = new ArrayList<>();
-    	for(int i = 0; i<6; i++) {
-    		pokemones1.add(getNumerRandom(386));
-    		pokemones2.add(getNumerRandom(386));
-    	}
-    	assingPokemon(pokemones1, pokemones2);
+        ArrayList<Integer> pokemones1 = new ArrayList<>();
+        ArrayList<Integer> pokemones2 = new ArrayList<>();
+        for(int i = 0; i<6; i++) {
+            pokemones1.add(getNumerRandom(386));
+            pokemones2.add(getNumerRandom(386));
+        }
+        assingPokemon(pokemones1, pokemones2);
     }
     private void createMoves(){
-    	ArrayList<Integer> pokemons1_moves = new ArrayList<>();
-    	ArrayList<Integer> pokemons2_moves = new ArrayList<>();
-    	for(int i = 0; i<24; i++) {
-    		pokemons1_moves.add(getNumerRandom(354));
-    		pokemons2_moves.add(getNumerRandom(354));
-    	}
+        ArrayList<Integer> pokemons1_moves = new ArrayList<>();
+        ArrayList<Integer> pokemons2_moves = new ArrayList<>();
+        for(int i = 0; i<24; i++) {
+            pokemons1_moves.add(getNumerRandom(354));
+            pokemons2_moves.add(getNumerRandom(354));
+        }
 
-    	assingMoves(pokemons1_moves, pokemons2_moves);
+        assingMoves(pokemons1_moves, pokemons2_moves);
     }
     private void prepareItem(){
         for(int i =0 ; i<2; i++) {
@@ -1610,21 +1890,21 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         }
     }
     public static int getNumerRandom(int limit) {
-		Random random = new Random();
+        Random random = new Random();
         return random.nextInt(limit) + 1;
     }
     private void createTrainers(String trainer1, String trainer2){
         this.players.clear();
-    	players.add(trainer1);
-    	players.add(trainer2);
+        players.add(trainer1);
+        players.add(trainer2);
     }
     private void assingPokemon(ArrayList<Integer> trainer1, ArrayList<Integer> trainer2){
-    	pokemones.put(players.get(0),trainer1);
-    	pokemones.put(players.get(1),trainer2);
+        pokemones.put(players.get(0),trainer1);
+        pokemones.put(players.get(1),trainer2);
     }
     private void assingMoves(ArrayList<Integer> trainer1, ArrayList<Integer> trainer2){
-    	moves.put(players.get(0),trainer1);
-    	moves.put(players.get(1),trainer2);
+        moves.put(players.get(0),trainer1);
+        moves.put(players.get(1),trainer2);
     }
     private void assingItem(int player, int item){
         String[][] items = this.items.get(players.get(player));
@@ -1634,7 +1914,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
     //
     public static void main(String[] args) {
-       POOBkemonGUI ventana = new POOBkemonGUI();
-       ventana.setVisible(true);
+        POOBkemonGUI ventana = new POOBkemonGUI();
+        ventana.setVisible(true);
     }
 }
