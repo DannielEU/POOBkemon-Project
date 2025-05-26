@@ -752,6 +752,18 @@ public class Pokemon implements Serializable {
 		this.canAttack = active;
 	}
 
+	public boolean canAttack() {
+		return this.canAttack;
+	}
+
+	public int getEvasionStage() {
+		return this.evasionStage;
+	}
+
+	public int getAccuracyStage() {
+		return this.accuracyStage;
+	}
+
 	/**
 	 * Modifies the specified stat of the object by a given multiplicator.
 	 *
