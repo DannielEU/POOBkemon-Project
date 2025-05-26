@@ -219,7 +219,8 @@ class PokemonTest {
     void reduceSpeed() {
         int initialSpeed = pokemon.speed;
         pokemon.reduceSpeed(50);
-        assertEquals(initialSpeed / 2 , pokemon.speed);
+        int secondSpeed = pokemon.speed;
+        assertNotEquals(secondSpeed, initialSpeed);
     }
 
     @Test

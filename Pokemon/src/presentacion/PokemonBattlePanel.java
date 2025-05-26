@@ -932,34 +932,60 @@ public class PokemonBattlePanel extends JPanel implements Auxiliar {
     }
     //
     private JPanel moveText() {
-        // Crear una copia básica del panel superior
         JPanel panel = createUpPanel();
-        JPanel framePanel = new ImagePanel(null,FRAME+this.frame+PNG_EXT);
-        JLabel battleText = new JLabel(this.game.getLastMoves());
-        battleText.setFont(Auxiliar.cargarFuentePixel(20));
+        JPanel framePanel = new ImagePanel(null, FRAME + this.frame + PNG_EXT);
+
+        // Etiqueta multilínea usando HTML
+        JLabel battleText = new JLabel();
+        battleText.setFont(Auxiliar.cargarFuentePixel(25));
         battleText.setOpaque(false);
+        battleText.setForeground(Color.WHITE);
+        battleText.setVerticalAlignment(SwingConstants.TOP);
+
+        framePanel.setLayout(null);
         framePanel.add(battleText);
+
+        // Animación de escritura (máquina de escribir)
+        String fullText = this.game.getLastMoves().replace("\n", "<br>");
+        String htmlStart = "<html><body style='width:100%;'>";
+        String htmlEnd = "</body></html>";
+        final int[] index = {0};
+
+        Timer writer = new Timer(20, null);
+        writer.addActionListener(e -> {
+            if (index[0] < fullText.length()) {
+                battleText.setText(htmlStart + fullText.substring(0, index[0] + 1) + htmlEnd);
+                index[0]++;
+            } else {
+                ((Timer) e.getSource()).stop();
+            }
+        });
+        writer.start();
+
+        // Ajuste del tamaño del texto dentro del framePanel
         framePanel.addComponentListener(new ComponentAdapter() {
             public void componentResized(ComponentEvent e) {
                 int w = framePanel.getWidth();
                 int h = framePanel.getHeight();
-                int fontSize = Math.max(12, h / 24);
-                battleText.setFont(Auxiliar.cargarFuentePixel(20));
-                battleText.setForeground(Color.white);
+                int fontSize = Math.max(24, h / 24);
+                battleText.setFont(Auxiliar.cargarFuentePixel(fontSize));
                 battleText.setBounds((int)(w * 0.03), (int)(h * 0.135), (int)(w * 0.94), (int)(h * 0.730));
             }
         });
+
+        panel.setLayout(null);
         panel.add(framePanel);
         panel.addComponentListener(new ComponentAdapter() {
             public void componentResized(ComponentEvent e) {
                 int w = panel.getWidth();
                 int h = panel.getHeight();
-                framePanel.setBounds((int)(w * 0), (int)(h * 0.70), (int)(w * 1), (int)(h * 0.3));
+                framePanel.setBounds(0, (int)(h * 0.70), w, (int)(h * 0.3));
             }
         });
 
         return panel;
     }
+
     //
     private JPanel createPusePanel() {
         this.paused =true;

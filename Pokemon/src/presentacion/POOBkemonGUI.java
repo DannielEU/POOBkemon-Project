@@ -1288,11 +1288,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     private void initMode(String mode){
         try {
             if (mode.equals("s")) {
-                this.game.deleteGame();
+                this.game.resetInstance();
                 this.game = Survive.getInstance();
                 game.initGame(this.players, this.pokemones, this.items, this.moves, this.random);
             } else if (mode.equals("p")) {
-                this.game.deleteGame();
+                this.game.resetInstance();
                 this.game = POOBkemon.getInstance();
                 game.initGame(this.players, this.pokemones, this.items, this.moves, this.random);
             }

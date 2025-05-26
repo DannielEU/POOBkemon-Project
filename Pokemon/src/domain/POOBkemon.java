@@ -48,6 +48,15 @@ public class POOBkemon implements Serializable {
 		}
 		return game;
 	}
+
+	/**
+	 * Resets the current instance of the game by setting
+	 * the game property to null. This method is used to
+	 * clear or reset the game state.
+	 */
+	public static void resetInstance(){
+		game = null;
+	}
 	/**
 	 * Inicializa el juego con los datos proporcionados.
 	 * @param trainers Lista de nombres de entrenadores
@@ -115,23 +124,11 @@ public class POOBkemon implements Serializable {
 			throw new POOBkemonException(POOBkemonException.INVALID_FORMAT + ": " + e.getMessage());
 		}
 	}
+
 	/**
-	 * Elimina el juego actual.
-	 */
-	public void deleteGame(){
-		this.game = null;
-		this.trainerId = 0;
-		this.finishBattle = false;
-		this.order = null;
-		this.random = false;
-		this.teams = null;
-		this.moves = null;
-		this.ok = true;
-		this.finishBattle = false;
-		this.winner = -1;
-	}
-	/*
-	* generador de Ids para los pokemons
+	 * Increments the value of the `nid` property by 1.
+	 * This method is used to update the internal state of the object
+	 * by advancing the numeric identifier for Pokémon.
 	 */
 	protected void nextIdPokemon(){
 		this.nid = this.nid + 1;

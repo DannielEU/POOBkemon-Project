@@ -10,6 +10,8 @@ public class BarraVidaConImagen extends JComponent {
     private int valorMaximo;
     private int arcWidth = 15;
     private int arcHeight = 15;
+    private Timer animacion;
+    private int valorObjetivo;
 
     // Márgenes
     private int paddingIzq = 40;
@@ -78,12 +80,38 @@ public class BarraVidaConImagen extends JComponent {
             g2.dispose();
         }
 
-        public void setValue(int value) {
-            this.valorActual = Math.min(Math.max(value, 0), valorMaximo);
-            repaint();
+    public void setValue(int value) {
+        valorObjetivo = Math.min(Math.max(value, 0), valorMaximo);
+        final int inicio = valorActual;
+        final int cambio = valorObjetivo - inicio;
+
+        if (animacion != null && animacion.isRunning()) {
+            animacion.stop();
         }
 
-        public void setMaxValue(int max) {
+        final int duracion = 300; // duración total en ms
+        final int delay = 15;     // intervalo de actualización
+        final int pasos = duracion / delay;
+        final double[] t = {0};   // progreso normalizado (0 a 1)
+
+        animacion = new Timer(delay, null);
+        animacion.addActionListener(e -> {
+            t[0] += 1.0 / pasos;
+            if (t[0] >= 1.0) {
+                valorActual = valorObjetivo;
+                animacion.stop();
+            } else {
+                double easing = t[0] * (2 - t[0]);  // ease-out cuadrático
+                valorActual = inicio + (int) (cambio * easing);
+            }
+            repaint();
+        });
+
+        animacion.start();
+    }
+
+
+    public void setMaxValue(int max) {
             this.valorMaximo = max;
             if (valorActual > valorMaximo) {
                 valorActual = valorMaximo;

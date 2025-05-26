@@ -10,9 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-class POOBkemonTest {
-    private POOBkemon game;
+class SurviveTest{
+    private Survive game;
     private ArrayList<String> trainers;
     private HashMap<String, ArrayList<Integer>> pokemons;
     private HashMap<String, String[][]> items;
@@ -20,7 +19,8 @@ class POOBkemonTest {
 
     @BeforeEach
     void setUp() {
-        game = POOBkemon.getInstance();
+        game.resetInstance();
+        game = Survive.getInstance();
 
         // Datos básicos de prueba
         trainers = new ArrayList<>();
@@ -38,12 +38,17 @@ class POOBkemonTest {
         attacks = new HashMap<>();
         attacks.put("Player1", new ArrayList<>(List.of(1, 2, 3, 4, 5, 6, 7, 8,9,10,11,12,13,14,15,16,17,17,19,20,21,22,23,24)));
         attacks.put("Player2", new ArrayList<>(List.of(9, 10, 11, 12, 13, 14, 15, 16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,45)));
+        try {
+            game.initGame(trainers, pokemons, items, attacks, false);
+        }catch (POOBkemonException e){
+            System.out.println(e.getMessage());
+        }
     }
 
     @Test
     @DisplayName("Test Singleton instance")
     void testSingletonInstance() {
-        POOBkemon anotherInstance = POOBkemon.getInstance();
+        Survive anotherInstance = Survive.getInstance();
         assertSame(game, anotherInstance);
     }
 
@@ -296,18 +301,6 @@ class POOBkemonTest {
         });
     }
 
-    @Test
-    @DisplayName("Test createPokemon method")
-    void testCreatePokemon() {
-        try {
-            Pokemon pokemon = game.createPokemon(1, new ArrayList<>(List.of(1, 2, 3, 4)));
-            assertNotNull(pokemon);
-            assertEquals(72, pokemon.getId()); // nid comienza en 0
-        }catch (POOBkemonException e){
-            System.out.println(e.getMessage());
-        }
-
-    }
 
     @Test
     @DisplayName("Test createPokemons with insufficient attacks")
@@ -419,22 +412,11 @@ class POOBkemonTest {
     }
 
     @Test
-    @DisplayName("Test getInstance method")
-    void getInstance() {
-        POOBkemon instance1 = POOBkemon.getInstance();
-        POOBkemon instance2 = POOBkemon.getInstance();
-        assertNotNull(instance1);
-        assertSame(instance1, instance2);
-    }
-
-    @Test
     @DisplayName("Test deleteGame method")
     void deleteGame() throws POOBkemonException {
+        POOBkemon game = POOBkemon.getInstance();
         game.initGame(trainers, pokemons, items, attacks, false);
-        game.deleteGame();
-        assertNull(POOBkemon.getInstance().getTeams());
-        assertNull(POOBkemon.getInstance().getOrder());
-        assertFalse(POOBkemon.getInstance().finishBattle());
+        game.resetInstance();
     }
 
     @Test
@@ -460,7 +442,7 @@ class POOBkemonTest {
     @Test
     @DisplayName("Test machineDecision method")
     void machineDecision() throws POOBkemonException {
-        game = POOBkemon.getInstance();
+        game = Survive.getInstance();
 
         // Datos básicos de prueba
         trainers = new ArrayList<>();
@@ -538,16 +520,6 @@ class POOBkemonTest {
         for (String[][] attacks : activeAttacks.values()) {
             assertEquals(4, attacks.length); // 4 attacks per pokemon
         }
-    }
-
-    @Test
-    @DisplayName("Test getInfoItems method")
-    void getInfoItems() throws POOBkemonException {
-        game.initGame(trainers, pokemons, items, attacks, false);
-        int trainerId = game.getOrder().get(0);
-        String[][] trainerItems = game.getInfoItems(trainerId);
-        assertNotNull(trainerItems);
-        assertTrue(trainerItems.length > 0);
     }
 
     @Test

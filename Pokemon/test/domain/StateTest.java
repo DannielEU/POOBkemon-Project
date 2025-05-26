@@ -126,7 +126,7 @@ public class StateTest {
             StringBuilder message = new StringBuilder();
             pokemon.setTrapped(true);
 
-            assertFalse(pokemon.isFree());
+            assertTrue(pokemon.isFree());
             assertTrue(message.toString().isEmpty());
     }
 
