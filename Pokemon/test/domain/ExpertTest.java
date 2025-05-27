@@ -54,5 +54,5 @@ class ExpertTest {
         }
         assertTrue(game.isOk());
     }
-
+    
 }
