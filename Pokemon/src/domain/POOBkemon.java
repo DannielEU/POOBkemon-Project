@@ -906,4 +906,9 @@ public class POOBkemon implements Serializable {
 			team.applyEffect();
 		}
 	}
+
+	public String[] getPokemonInfoById(int id){
+		PokemonRepository pokemonInfo = new PokemonRepository();
+		return pokemonInfo.getPokemonId(id);
+	}
 }

@@ -1066,186 +1066,238 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     }
 
     private void chooseMoves() {
-        chooseMovesPanel = new JPanel(new BorderLayout()) {
-            private ImageIcon gifBg = new ImageIcon(MENU + "fondoPre7.png");
+        setSize(750, 550);
+        setMinimumSize(new Dimension(750, 550));
+
+        chooseMovesPanel = new ImagePanel(new BorderLayout(), MENU + "fondoPre7.png") {
             @Override
             protected void paintComponent(Graphics g) {
-                g.drawImage(gifBg.getImage(), 0, 0, getWidth(), getHeight(), this);
                 super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                GradientPaint gradient = new GradientPaint(0, 0, new Color(0, 0, 0, 150),
+                        getWidth(), 0, new Color(0, 0, 0, 100));
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
             }
         };
         chooseMovesPanel.setOpaque(false);
-        chooseMovesPanel.setLayout(null);
+        chooseMovesPanel.setLayout(new BorderLayout());
 
-        ArrayList<Integer> selectedMoves1 = new ArrayList<>();
-        ArrayList<Integer> selectedMoves2 = new ArrayList<>();
-        ArrayList<Integer> pokemones = new ArrayList<>();
+        ArrayList<Integer> pokemonesList = new ArrayList<>();
+        pokemonesList.addAll(this.pokemones.get(players.get(0)));
+        pokemonesList.addAll(this.pokemones.get(players.get(1)));
 
-        pokemones.addAll(this.pokemones.get(players.get(0)));
-        pokemones.addAll(this.pokemones.get(players.get(1)));
+        AtomicReference<Integer> currentPokemonIndex = new AtomicReference<>(0);
+        AtomicReference<Integer> currentPlayer = new AtomicReference<>(0);
+        HashMap<Integer, ArrayList<Integer>> selectedMoves = new HashMap<>();
+        for (int i = 0; i < pokemonesList.size(); i++) {
+            selectedMoves.put(i, new ArrayList<>());
+        }
 
-        // Título
-        JLabel titleLabel = new JLabel("Elige los movimientos", JLabel.LEFT);
-        titleLabel.setFont(cargarFuentePixel(25));
-        titleLabel.setForeground(Color.white);
-        titleLabel.setBounds(30, 10, 400, 60);
-        chooseMovesPanel.add(titleLabel);
+        // Panel superior
+        JPanel infoPanel = new JPanel(new BorderLayout());
+        infoPanel.setOpaque(false);
+        infoPanel.setPreferredSize(new Dimension(750, 180));
 
-        // Marco del título
-        JButton titleFrame = new JButton(new ImageIcon(new ImageIcon(FRAME + "4.png").getImage().getScaledInstance(350, 60, Image.SCALE_SMOOTH)));
-        titleFrame.setBounds(10, 10, 360, 60);
-        titleFrame.setBorderPainted(false);
-        titleFrame.setContentAreaFilled(false);
-        chooseMovesPanel.add(titleFrame);
+        JLabel playerLabel = new JLabel("", JLabel.CENTER);
+        playerLabel.setFont(cargarFuentePixel(22));
+        playerLabel.setForeground(Color.WHITE);
 
-        // Etiqueta del turno
-        JLabel turnLabel = new JLabel(player1Name + " elige para:", JLabel.CENTER);
-        turnLabel.setFont(cargarFuentePixel(22));
-        turnLabel.setForeground(Color.black);
-        turnLabel.setBounds(15, 230, 250, 35);
-        chooseMovesPanel.add(turnLabel);
+        JLabel pokemonLabel = new JLabel("", JLabel.CENTER);
+        pokemonLabel.setFont(cargarFuentePixel(18));
+        pokemonLabel.setForeground(Color.WHITE);
 
-        JLabel characterImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Bruno.png"), 150, 150));
-        characterImage.setBounds(50, 75, 150, 150);
-        chooseMovesPanel.add(characterImage);
+        JPanel textPanel = new JPanel(new GridLayout(2, 1));
+        textPanel.setOpaque(false);
+        textPanel.add(playerLabel);
+        textPanel.add(pokemonLabel);
 
-        JLabel characterImage2 = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Aura.png"), 150, 150));
-        characterImage2.setBounds(50, 75, 150, 150);
-        characterImage2.setVisible(false);
-        chooseMovesPanel.add(characterImage2);
+        JLabel pokemonImage = new JLabel();
+        pokemonImage.setHorizontalAlignment(JLabel.CENTER);
+        pokemonImage.setPreferredSize(new Dimension(145, 145));
 
-        // Panel para la imagen del Pokémon actual
-        JLabel pokemonImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(NORMAL_PATH + pokemones.get(0) + ".png"), 150, 150));
-        pokemonImage.setBounds(50, 270, 150, 150);
-        chooseMovesPanel.add(pokemonImage);
+        JPanel imagePanel = new JPanel(new BorderLayout());
+        imagePanel.setOpaque(false);
+        imagePanel.setBorder(BorderFactory.createEmptyBorder(-15, 0, 120, 0)); // empuja hacia arriba
+        imagePanel.add(pokemonImage, BorderLayout.NORTH);
 
-        // Grid de movimientos
-        JPanel gridPanel = new JPanel(new GridLayout(0, 1, 5, 5));
-        gridPanel.setOpaque(false);
-        gridPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        infoPanel.add(textPanel, BorderLayout.NORTH);
+        infoPanel.add(imagePanel, BorderLayout.CENTER);
 
-        // ScrollPane
-        JScrollPane scrollPane = new JScrollPane(gridPanel);
-        scrollPane.setBounds(275, 85, 450, 350);
+        // Panel de movimientos
+        JPanel movesPanel = new JPanel(new GridLayout(0, 2, 10, 10));
+        movesPanel.setOpaque(false);
+        movesPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JPanel movesContainer = new JPanel(new GridBagLayout());
+        movesContainer.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        movesContainer.add(movesPanel, gbc);
+
+        JScrollPane scrollPane = new JScrollPane(movesContainer);
         scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0, 0, 0, 100), 3),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
+        scrollPane.setBorder(null);
+        scrollPane.setPreferredSize(new Dimension(750, 300));
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 
-        // Configurar scrollbar
-        JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
-        verticalBar.setUnitIncrement(16);
-        verticalBar.setPreferredSize(new Dimension(10, 0));
+        JScrollBar scrollBar = scrollPane.getVerticalScrollBar();
+        scrollBar.setUI(new BasicScrollBarUI() {
+            @Override protected void configureScrollBarColors() {
+                this.thumbColor = new Color(100, 100, 100, 150);
+                this.trackColor = new Color(50, 50, 50, 50);
+            }
+            @Override protected JButton createDecreaseButton(int orientation) { return createZeroButton(); }
+            @Override protected JButton createIncreaseButton(int orientation) { return createZeroButton(); }
+            private JButton createZeroButton() {
+                JButton button = new JButton();
+                button.setPreferredSize(new Dimension(0, 0));
+                return button;
+            }
+        });
 
-        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        chooseMovesPanel.add(scrollPane);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        buttonPanel.setOpaque(false);
+        buttonPanel.setPreferredSize(new Dimension(750, 50));
 
-        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30), new Color(240, 240, 240, 200));
-        chooseMovesPanel.add(backButtonGameMode);
+        JButton backButton = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(0, 0, 120, 40),
+                new Color(240, 240, 240, 200));
+        JButton nextButton = Auxiliar.crearBotonEstilizado("Siguiente", new Rectangle(0, 0, 120, 40),
+                new Color(240, 240, 240, 200));
+        nextButton.setEnabled(false);
 
-        JButton addButton = Auxiliar.crearBotonEstilizado("Añadir", new Rectangle(630, 450, 100, 30), new Color(240, 240, 240, 200));
-        addButton.setVisible(false);
-        chooseMovesPanel.add(addButton);
+        buttonPanel.add(backButton);
+        buttonPanel.add(nextButton);
 
+        chooseMovesPanel.add(infoPanel, BorderLayout.NORTH);
+        chooseMovesPanel.add(scrollPane, BorderLayout.CENTER);
+        chooseMovesPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(630, 450, 100, 30), new Color(240, 240, 240, 200));
-        doneButton.setBackground(new Color(200, 200, 200, 150));
-        doneButton.setVisible(false);
-        chooseMovesPanel.add(doneButton);
+        // Actualizar UI
+        Runnable updateUI = () -> {
+            int pokemonId = pokemonesList.get(currentPokemonIndex.get());
+            String pokemonName = game.getPokemonInfoById(pokemonId)[1];
 
-        final int[] pokemonActualIndex = {0};
-        ArrayList<ArrayList<Component>> buttonsPerPokemon = new ArrayList<>();
-        ArrayList<ArrayList<String[]>> moves = new ArrayList<>();
-        for (Integer i : pokemones){
-            moves.add(game.getCompatibleAttacks(i));
-        }
-        for (ArrayList<String[]> movesPokemon : moves){
-            ArrayList<Component> buttons = new ArrayList<>();
-            for (int i = 0; i < movesPokemon.size(); i++) {
-                final Integer pokemonId = i;
+            playerLabel.setText((currentPlayer.get() == 0 ? player1Name : player2Name) + " está seleccionando");
+            pokemonLabel.setText("Movimientos para " + pokemonName);
 
-                ImageIcon original = new ImageIcon(POKEMONES + "Normal/" + pokemones.get(0) + ".png");
-                Image scaled = original.getImage().getScaledInstance(138, 138, Image.SCALE_SMOOTH);
+            try {
+                ImageIcon icon = new ImageIcon(NORMAL_PATH + pokemonId + ".png");
+                Image scaled = icon.getImage().getScaledInstance(120, 120, Image.SCALE_SMOOTH);
                 pokemonImage.setIcon(new ImageIcon(scaled));
+            } catch (Exception e) {
+                pokemonImage.setIcon(null);
+            }
 
-                JButton pokemonButton = Auxiliar.crearBotonTransparente(this.game.getAttackId(Integer.parseInt(movesPokemon.get(i)[0])), new Rectangle(10, 10, 5, 5), false);
-                pokemonButton.setOpaque(false);
-                pokemonButton.setContentAreaFilled(false);
-                pokemonButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 3));
-                pokemonButton.setFocusPainted(true);
+            movesPanel.removeAll();
+            ArrayList<String[]> availableMoves = game.getCompatibleAttacks(pokemonId);
 
-                pokemonButton.addActionListener(e -> {
-                    addButton.setVisible(true);
+            for (String[] moveInfo : availableMoves) {
+                int moveId = Integer.parseInt(moveInfo[0]);
+                String moveName = game.getAttackId(moveId);
+                String moveType = moveInfo[1];
+                String movePP = "Power: "+ moveInfo[5] + "/" +"Accuracy: " + moveInfo[6];
 
-                    for (ActionListener al : addButton.getActionListeners()) {
-                        addButton.removeActionListener(al);
+                JButton moveButton = new JButton("<html><center><b>" + moveName + "</b><br>" +
+                        "<font color='gray'>" + " | Info: " + movePP + "</font></center></html>");
+                moveButton.setBackground(getTypeColor(moveType));
+                moveButton.setForeground(Color.WHITE);
+                moveButton.setFont(cargarFuentePixel(14));
+                moveButton.setFocusPainted(false);
+                moveButton.setMaximumSize(new Dimension(330, 50));
+                moveButton.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.BLACK, 2),
+                        BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                ));
+
+                boolean isSelected = selectedMoves.get(currentPokemonIndex.get()).contains(moveId);
+                if (isSelected) {
+                    moveButton.setBackground(getTypeColor(moveType).darker());
+                    moveButton.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2));
+                }
+
+                moveButton.addActionListener(e -> {
+                    ArrayList<Integer> currentSelections = selectedMoves.get(currentPokemonIndex.get());
+
+                    if (currentSelections.contains(moveId)) {
+                        currentSelections.remove((Integer) moveId);
+                        moveButton.setBackground(getTypeColor(moveType));
+                        moveButton.setBorder(BorderFactory.createCompoundBorder(
+                                BorderFactory.createLineBorder(Color.BLACK, 2),
+                                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                        ));
+                    } else if (currentSelections.size() < 4) {
+                        currentSelections.add(moveId);
+                        moveButton.setBackground(getTypeColor(moveType).darker());
+                        moveButton.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2));
                     }
 
-                    addButton.addActionListener(ae -> {
-                        if (selectedMoves1.size() < 24) {
-                            selectedMoves1.add(Integer.valueOf(movesPokemon.get(pokemonId)[0]));
-
-                            if (selectedMoves1.size() % 4 == 0) {
-                                pokemonActualIndex[0]++;
-
-                                if (pokemonActualIndex[0] < pokemones.size() / 2) {
-                                    ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
-                                    Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
-                                    pokemonImage.setIcon(new ImageIcon(pkscaled));
-                                }
-                            }
-
-                            if (selectedMoves1.size() == 24) {
-                                characterImage.setVisible(false);
-                                characterImage2.setVisible(true);
-                                pokemonActualIndex[0] = pokemones.size() / 2;
-                                ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
-                                Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
-                                pokemonImage.setIcon(new ImageIcon(pkscaled));
-                                turnLabel.setText(player2Name + " elige para: ");
-                            }
-
-                            addButton.setVisible(false);
-                        } else if (selectedMoves1.size() == 24 && selectedMoves2.size() < 24) {
-                            selectedMoves2.add(Integer.valueOf(movesPokemon.get(pokemonId)[0]));
-
-                            if (selectedMoves2.size() % 4 == 0) {
-                                pokemonActualIndex[0]++;
-
-                                if (pokemonActualIndex[0] < pokemones.size()) {
-                                    ImageIcon pk = new ImageIcon(NORMAL_PATH + pokemones.get(pokemonActualIndex[0]) + ".png");
-                                    Image pkscaled = pk.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
-                                    pokemonImage.setIcon(new ImageIcon(pkscaled));
-                                }
-
-                                // Si se completaron todos los movimientos
-                                if (selectedMoves2.size() == 24) {
-
-                                    doneButton.setVisible(true);
-                                    assingMoves(selectedMoves1, selectedMoves2);
-                                    chooseItems();
-                                    return;
-                                }
-                            }
-                            addButton.setVisible(false);
-                        }
-                    });
+                    nextButton.setEnabled(currentSelections.size() >= 4);
                 });
-                buttons.add(pokemonButton);
+
+                movesPanel.add(moveButton);
             }
-            buttonsPerPokemon.add(buttons);
-        }
 
-        for (Component component: buttonsPerPokemon.get(pokemonActualIndex[0])){
-            gridPanel.add(component);
-        }
+            movesPanel.revalidate();
+            movesPanel.repaint();
+        };
 
-        backButtonGameMode.addActionListener(e -> choosePokemon());
-        doneButton.addActionListener(ev -> {
-            assingMoves(selectedMoves1, selectedMoves2);
-            chooseItems();
+        backButton.addActionListener(e -> {
+            if (currentPokemonIndex.get() > 0) {
+                currentPokemonIndex.getAndSet(currentPokemonIndex.get() - 1);
+                if (currentPokemonIndex.get() == pokemonesList.size() / 2 - 1) {
+                    currentPlayer.set(0);
+                }
+                updateUI.run();
+                nextButton.setEnabled(selectedMoves.get(currentPokemonIndex.get()).size() >= 4);
+            } else {
+                choosePokemon();
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentPokemonIndex.get() < pokemonesList.size() - 1) {
+                currentPokemonIndex.getAndSet(currentPokemonIndex.get() + 1);
+                if (currentPokemonIndex.get() == pokemonesList.size() / 2) {
+                    currentPlayer.set(1);
+                }
+                updateUI.run();
+                nextButton.setEnabled(selectedMoves.get(currentPokemonIndex.get()).size() >= 4);
+                if (currentPokemonIndex.get() == pokemonesList.size() - 1) {
+                    nextButton.setText("Finalizar");
+                }
+            } else {
+                ArrayList<Integer> movesPlayer1 = new ArrayList<>();
+                ArrayList<Integer> movesPlayer2 = new ArrayList<>();
+                for (int i = 0; i < pokemonesList.size(); i++) {
+                    if (i < pokemonesList.size() / 2) {
+                        movesPlayer1.addAll(selectedMoves.get(i));
+                    } else {
+                        movesPlayer2.addAll(selectedMoves.get(i));
+                    }
+                }
+                assingMoves(movesPlayer1, movesPlayer2);
+                chooseItems();
+            }
+        });
+
+        updateUI.run();
+
+        InputMap inputMap = chooseMovesPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = chooseMovesPanel.getActionMap();
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "back");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "next");
+        actionMap.put("back", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) { backButton.doClick(); }
+        });
+        actionMap.put("next", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                if (nextButton.isEnabled()) { nextButton.doClick(); }
+            }
         });
 
         setContentPane(chooseMovesPanel);
@@ -1253,10 +1305,28 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         repaint();
     }
 
-    private void actualizarGrid(ImagePanel gridPanel, int pokemonActualIndex, ArrayList<ArrayList<Component>> buttonsPerPokemon) {
-        gridPanel.removeAll();
-        for (Component component: buttonsPerPokemon.get(pokemonActualIndex)){
-            gridPanel.add(component);
+
+    private Color getTypeColor(String type) {
+        // Mapeo de colores según el tipo de movimiento (similar al juego Pokémon)
+        switch (type.toLowerCase()) {
+            case "fire": return new Color(238, 129, 48);
+            case "water": return new Color(99, 144, 240);
+            case "electric": return new Color(247, 208, 44);
+            case "grass": return new Color(122, 199, 76);
+            case "ice": return new Color(150, 217, 214);
+            case "fighting": return new Color(194, 46, 40);
+            case "poison": return new Color(163, 62, 161);
+            case "ground": return new Color(226, 191, 101);
+            case "flying": return new Color(169, 143, 243);
+            case "psychic": return new Color(249, 85, 135);
+            case "bug": return new Color(166, 185, 26);
+            case "rock": return new Color(182, 161, 54);
+            case "ghost": return new Color(115, 87, 151);
+            case "dragon": return new Color(111, 53, 252);
+            case "dark": return new Color(112, 87, 70);
+            case "steel": return new Color(183, 183, 206);
+            case "fairy": return new Color(214, 133, 173);
+            default: return new Color(168, 167, 122); // Normal
         }
     }
     private void chooseItems() {
