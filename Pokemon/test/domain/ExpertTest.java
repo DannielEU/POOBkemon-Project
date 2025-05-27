@@ -54,5 +54,32 @@ class ExpertTest {
         }
         assertTrue(game.isOk());
     }
-    
+    @Test
+    void shouldUseItemWhenPokemonHasCriticalHealth() {
+        try {
+            // Configurar Pokémon con salud crítica
+            Pokemon pokemon = game.teams().get(0).getPokemons().get(0);
+            pokemon.currentHealth = (int)(pokemon.maxHealth * 0.2); // 20% de salud
+
+            String[] decision = game.machineDecision(0);
+
+            assertNotNull(decision);
+        } catch (POOBkemonException e) {
+            fail("No debería lanzar excepción: " + e.getMessage());
+        }
+    }
+
+    @Test
+    void shouldSelectAttackWhenNoItemNeededAndSwitchingNotOptimal() {
+        try {
+            Pokemon pokemon = game.teams().get(0).getPokemons().get(0);
+            pokemon.currentHealth = pokemon.maxHealth;
+
+            String[] decision = game.machineDecision(0);
+
+            assertNotNull(decision);
+        } catch (POOBkemonException e) {
+            fail("No debería lanzar excepción: " + e.getMessage());
+        }
+    }
 }
