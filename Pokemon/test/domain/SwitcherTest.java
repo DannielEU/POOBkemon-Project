@@ -54,4 +54,48 @@ class SwitcherTest {
         }
         assertTrue(game.isOk());
     }
+
+    @Test
+    void shouldSwitchWhenLowHealth() throws POOBkemonException {
+        Pokemon activePokemon = game.teams().get(0).getPokemons().get(0);
+        activePokemon.currentHealth = (int)(activePokemon.maxHealth * 0.2);
+        String[] decision = game.machineDecision(0);
+
+        assertNotNull(decision);
+        assertEquals("ChangePokemon", decision[0], "Debería cambiar de Pokémon cuando la salud es baja");
+    }
+
+    @Test
+    void shouldAttackWithTypeAdvantage() throws POOBkemonException {
+        Pokemon activePokemon = game.teams().get(0).getPokemons().get(0);
+        activePokemon.currentHealth = activePokemon.maxHealth; // Vida completa
+        String[] decision = game.machineDecision(0);
+
+        assertNotNull(decision);
+        assertTrue(decision[0].equals("Attack") || decision[0].equals("ChangePokemon"), "Debería atacar o cambiar basado en la ventaja de tipo");
+    }
+    
+    @Test
+    void shouldReturnValidDecisionFormat() throws POOBkemonException {
+        String[] decision = game.machineDecision(0);
+        assertNotNull(decision);
+        assertTrue(decision.length >= 2, "La decisión debe tener al menos 2 elementos");
+        assertTrue(decision[0].equals("Attack") || decision[0].equals("ChangePokemon"), "La decisión debe ser Attack o ChangePokemon");
+    }
+
+    @Test
+    void shouldConsiderMultiplePokemonOptions() throws POOBkemonException {
+        Team team = game.teams().get(0);
+        assertTrue(team.getPokemons().size() > 1,
+                "Debe haber más de un Pokémon para probar las opciones");
+
+        String[] decision = game.machineDecision(0);
+
+        assertNotNull(decision);
+        if (decision[0].equals("ChangePokemon")) {
+            int newPokemonId = Integer.parseInt(decision[2]);
+            assertTrue(newPokemonId > 0,
+                    "El ID del nuevo Pokémon debe ser válido");
+        }
+    }
 }
