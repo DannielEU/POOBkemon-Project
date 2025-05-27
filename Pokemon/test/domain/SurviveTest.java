@@ -572,4 +572,14 @@ class SurviveTest{
         assertNotNull(attackInfo);
         assertTrue(attackInfo.contains("Pound"));
     }
+
+    @Test
+    void shouldReturnEmptyInfoItems() throws POOBkemonException {
+        game.initGame(trainers, pokemons, items, attacks, false);
+        int trainerId = game.getOrder().get(0);
+        String[][] itemInfo = game.getInfoItems(trainerId);
+
+        assertNotNull(itemInfo, "the array should not be null");
+        assertEquals(0, itemInfo.length, "the array should be empty for this test case");
+    }
 }

@@ -697,6 +697,10 @@ public class Pokemon implements Serializable {
 		}
 	}
 
+	public int getCurrentHealth() {
+		return this.currentHealth;
+	}
+
 	/**
 	 * Determines if Pokemon is shiny (10% chance).
 	 */

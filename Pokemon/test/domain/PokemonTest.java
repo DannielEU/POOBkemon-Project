@@ -280,4 +280,33 @@ class PokemonTest {
         assertFalse(pokemon.isFree());
     }
 
+    @Test
+    void shouldModifyCriticalHitChance() {
+        double initialCritChance = 0.0417;
+        pokemon.modifyStat("Critico", 1.5);
+        int expectedAttack = pokemon.attack;
+        assertEquals(expectedAttack, pokemon.attack, "the base attack should not change");
+        double expectedCritChance = initialCritChance * 1.5;
+        assertEquals(expectedCritChance, 0.06255, 0.0001);
+    }
+
+    @Test
+    void shouldDeleteState() throws POOBkemonException {
+        String[] stateInfo = {"BURN", "1", "3", "10", "0.0", "0.0", "0.0"};
+        State testState = new State(stateInfo);
+        try {
+            java.lang.reflect.Field principalStateField = Pokemon.class.getDeclaredField("principalState");
+            principalStateField.setAccessible(true);
+            principalStateField.set(pokemon, testState);
+            pokemon.deleteState(testState);
+
+            State resultState = (State) principalStateField.get(pokemon);
+            assertNull(resultState, "El estado principal debería ser null después de eliminarlo");
+
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            fail("Error al acceder al campo principalState: " + e.getMessage());
+        }
+    }
+
+
 }
