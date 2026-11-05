@@ -103,8 +103,8 @@ class DefensiveTest {
         String[] decision = game.machineDecision(defensiveTrainer.getId());
 
         assertNotNull(decision, "La decisión no debe ser nula");
-        assertEquals("Attack", decision[0], "La máquina debería decidir usar un item");
-        assertEquals("2", decision[3], "El item usado debería ser una poción");
+        assertEquals("UseItem", decision[0], "La máquina debería decidir usar un item");
+        assertEquals("superPotion", decision[3], "El item usado debería ser una poción");
     }
 
     @Test

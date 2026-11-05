@@ -1,53 +1,58 @@
 package persistence;
 
-import domain.Log;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
-public class
-
-PokemonRepository {
+/**
+ * Acceso de solo lectura al catálogo de Pokémon.
+ * Columnas: ID_0, Name_1, Type1_2, Type2_3, Total_4, HP_5, Attack_6, Defense_7, Sp.Atk_8, Sp.Def_9, Speed_10.
+ * El archivo se lee una sola vez y se comparte entre instancias.
+ */
+public class PokemonRepository {
 
     private static final String POKEMONS_ARCHIVE = "resources/csv/Pokemones.csv";
 
-    private static TreeMap<Integer,String[]> pokemones = new TreeMap<>();
-    
-    public PokemonRepository(){
-    	List<String> pokemonsIput = null;
-        try {
-            pokemonsIput = Files.readAllLines(Paths.get(POKEMONS_ARCHIVE));
+    private static volatile Map<Integer, String[]> catalog;
 
-        } catch (IOException e) {
-            Log.record(e);
-        }
-
-        for (int i = 1; i < pokemonsIput.size(); i++) {
-            //ID_0,"Name"_1,"Type1"_3,"Type2"_4,"HP"_6,"Attack"_7,"Defense"_8,"Sp. Atk"_9,"Sp. Def"_10,"Speed"_11,
-            String[] valores = pokemonsIput.get(i).split(",");
-            this.pokemones.put(Integer.parseInt(valores[0]),valores);
-        }
-    	
+    public PokemonRepository() {
+        load();
     }
 
+    private static Map<Integer, String[]> load() {
+        Map<Integer, String[]> local = catalog;
+        if (local == null) {
+            synchronized (PokemonRepository.class) {
+                local = catalog;
+                if (local == null) {
+                    local = new TreeMap<>();
+                    for (String[] row : CsvReader.readRows(POKEMONS_ARCHIVE)) {
+                        local.put(Integer.parseInt(row[0]), row);
+                    }
+                    catalog = local;
+                }
+            }
+        }
+        return local;
+    }
+
+    /**
+     * @return copia de todas las filas del catálogo ordenadas por ID
+     */
     public ArrayList<String[]> getPokemons() {
-        ArrayList<String[]> pokemones = new ArrayList<>();
-        for (String[] s:this.pokemones.values()) {
-            //ID_0,"Name"_1,"Type1"_3,"Type2"_4,"HP"_6,"Attack"_7,"Defense"_8,"Sp. Atk"_9,"Sp. Def"_10,"Speed"_11,
-            pokemones.add(s);
+        ArrayList<String[]> rows = new ArrayList<>();
+        for (String[] row : load().values()) {
+            rows.add(row.clone());
         }
-        return pokemones;
+        return rows;
     }
 
+    /**
+     * @param id identificador en la Pokédex
+     * @return copia de la fila del Pokémon, o {@code null} si no existe
+     */
     public String[] getPokemonId(int id) {
-        if (pokemones.containsKey(id)) {
-            return pokemones.get(id);
-        } else {
-            return null;
-        }
+        String[] row = load().get(id);
+        return row == null ? null : row.clone();
     }
 }

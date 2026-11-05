@@ -1,6 +1,5 @@
 package domain;
 
-import persistence.StatsRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +23,6 @@ public class Switcher extends Machine {
     private static final double HEALTH_SCORE_WEIGHT = 0.3;
     private static final double RANDOM_SCORE_WEIGHT = 0.2;
 
-    private final StatsRepository typeChart = new StatsRepository();
     private java.util.Random random;
 
     /**
@@ -67,44 +65,8 @@ public class Switcher extends Machine {
         return createAttackDecision(myActive, opponent);
     }
 
-    /**
-     * Retrieves the team associated with this instance from the given POOBkemon game.
-     * The team is identified by matching the trainer's ID with this instance's ID.
-     *
-     * @param game the current POOBkemon game, containing all teams*/
-    private Team getMyTeam(POOBkemon game) throws POOBkemonException {
-        for (Team team : game.teams()) {
-            if (team.getTrainer().getId() == this.getId()) {
-                return team;
-            }
-        }
-        throw new POOBkemonException("Equipo no encontrado para el entrenador: " + this.getId());
-    }
 
-    /**
-     * Retrieves the active Pokemon from the specified team.
-     * The active Pokemon is determined based on the current trainer's identified Pokemon.
-     *
-     * @param team the team from which to retrieve the active Pokemon, containing the trainer and their Pokemon
-     * @return the active Pokemon of the specified team
-     * @throws POOBkemonException if the active Pokemon could not be retrieved due to invalid team or trainer data
-     */
-    private Pokemon getActivePokemon(Team team) throws POOBkemonException {
-        return team.getPokemonById(team.getTrainer().getCurrentPokemonId());
-    }
 
-    private Pokemon getOpponentActivePokemon(POOBkemon game) throws POOBkemonException {
-        for (Team team : game.teams()) {
-            if (team.getTrainer().getId() != this.getId()) {
-                for (Pokemon pokemon : team.getPokemons()) {
-                    if (pokemon.getActive()) {
-                        return pokemon;
-                    }
-                }
-            }
-        }
-        throw new POOBkemonException("No se encontró Pokémon oponente activo");
-    }
 
     /**
      * Determines whether the active Pokemon on the player's team should be switched out,
@@ -176,11 +138,7 @@ public class Switcher extends Machine {
         }
 
         Pokemon bestChoice = selectBestSwitchCandidate(candidates, opponent);
-        return new String[] {
-                "ChangePokemon",
-                String.valueOf(this.getId()),
-                String.valueOf(bestChoice.getId())
-        };
+        return Decision.changePokemon(getId(), bestChoice.getId());
     }
 
     /**
@@ -203,31 +161,9 @@ public class Switcher extends Machine {
         }
 
         Attack bestAttack = selectBestAttack(availableAttacks, attacker, opponent);
-        return new String[] {
-                "Attack",
-                String.valueOf(bestAttack.getIdInside()),
-                String.valueOf(attacker.getId()),
-                String.valueOf(this.getId())
-        };
+        return attackDecision(attacker, bestAttack);
     }
 
-    /**
-     * Determines the potential Pokemon candidates from the given team for switching out the currently active Pokemon.
-     * A Pokemon is considered a candidate if it is not marked as weak and it is not the same as the currently active Pokemon.
-     *
-     * @param team the team from which the switch candidates will be determined
-     * @param current the currently active Pokemon, which is not eligible for switching
-     * @return a list of Pokemon that are suitable candidates for switching
-     */
-    private List<Pokemon> getSwitchCandidates(Team team, Pokemon current) {
-        List<Pokemon> candidates = new ArrayList<>();
-        for (Pokemon pokemon : team.getPokemons()) {
-            if (!pokemon.getWeak() && pokemon.getId() != current.getId()) {
-                candidates.add(pokemon);
-            }
-        }
-        return candidates;
-    }
 
     /**
      * Selects the best Pokemon candidate for switching out based on a set of evaluation criteria.
@@ -271,19 +207,6 @@ public class Switcher extends Machine {
         return score;
     }
 
-    /**
-     * Retrieves the list of attacks available for a given Pokemon.
-     * An attack is considered available if its current PP (Power Points) is greater than 0.
-     */
-    private List<Attack> getAvailableAttacks(Pokemon pokemon) {
-        List<Attack> available = new ArrayList<>();
-        for (Attack attack : pokemon.getAttacks()) {
-            if (attack.getPPActual() > 0) {
-                available.add(attack);
-            }
-        }
-        return available;
-    }
 
     /**
      * Selects the best attack from a list of available attacks based on their
@@ -324,7 +247,7 @@ public class Switcher extends Machine {
         try {
             double score = 0;
 
-            double typeEffectiveness = typeChart.getMultiplier(attack.getType(), opponent.type);
+            double typeEffectiveness = TYPE_CHART.getMultiplier(attack.getType(), opponent.type);
             score += typeEffectiveness * 0.5;
 
             score += (attack.getPower() / 150.0) * 0.3;
@@ -338,24 +261,4 @@ public class Switcher extends Machine {
         }
     }
 
-    /**
-     * Calculates the type effectiveness of an attacker's type against a defender's type.
-     * The method uses the provided type chart to determine the type multiplier based
-     * on the compatibility between the attacker and defender's types.
-     *
-     * @param attacker the attacking Pokemon whose type is evaluated
-     * @param defender the defending Pokemon whose type is being countered
-     * @return a double value representing the type effectiveness multiplier:
-     *         - Values greater than 1 indicate a type advantage for the attacker.
-     *         - Values less than 1 indicate a type disadvantage for the attacker.
-     *         - A value of 1.0 indicates neutral effectiveness.
-     *         - If an error occurs, the default value of 1.0 is returned.
-     */
-    private double calculateTypeEffectiveness(Pokemon attacker, Pokemon defender) {
-        try {
-            return typeChart.getMultiplier(attacker.getType(), defender.getType());
-        } catch (Exception e) {
-            return 1.0;
-        }
-    }
 }

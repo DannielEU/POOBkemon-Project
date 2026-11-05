@@ -18,6 +18,25 @@ import java.util.Map;
  */
 public class POOBkemon implements Serializable {
 
+	private static final int ATTACKS_PER_POKEMON = 4;
+	private static final int DEFAULT_POKEMON_LEVEL = 1;
+	/** Cada cuántas decisiones se aplican los efectos de estado (cada turno completo). */
+	private static final int TURNS_PER_STATE_TICK = 2;
+	private static final int NO_WINNER = -1;
+
+	/** Construye un entrenador a partir de su id y su mochila (Factory Method). */
+	@FunctionalInterface
+	private interface TrainerBuilder {
+		Trainer build(int id, BagPack bagPack) throws POOBkemonException;
+	}
+
+	/** Tipos de entrenador reconocidos; cualquier otro nombre se trata como {@link Switcher}. */
+	private static final Map<String, TrainerBuilder> TRAINER_BUILDERS = Map.of(
+			"Player", Trainer::new,
+			"Offensive", Offensive::new,
+			"Defensive", Defensive::new,
+			"Expert", Expert::new);
+
 	protected ArrayList<String> moves;
 	protected ArrayList<Integer> order;
 	private boolean finishBattle = false;
@@ -27,20 +46,14 @@ public class POOBkemon implements Serializable {
 	protected boolean random;
 	protected boolean ok;
 	protected static POOBkemon game;
-	private int pokemonLvl = 1;
-	private int winner = -1;
+	private int winner = NO_WINNER;
 	private int counter = 1;
 
-
-	/**
-	 * Constructor del Juego
-	 */
 	protected POOBkemon() {}
 
 	/**
-	 * Obtiene la instancia singleton del juego POOBkemon.
+	 * Obtiene la instancia única del juego, creándola si aún no existe.
 	 * @return Instancia única del juego
-	 * @throws IllegalStateException Si el juego no ha sido inicializado
 	 */
 	public static POOBkemon getInstance(){
 		if (game == null) {
@@ -50,13 +63,20 @@ public class POOBkemon implements Serializable {
 	}
 
 	/**
-	 * Resets the current instance of the game by setting
-	 * the game property to null. This method is used to
-	 * clear or reset the game state.
+	 * Descarta la instancia actual; la siguiente llamada a {@link #getInstance()} crea una nueva.
 	 */
 	public static void resetInstance(){
 		game = null;
 	}
+
+	/**
+	 * Nivel con el que se crean los Pokémon. Los modos de juego lo sobrescriben (Template Method).
+	 * @return nivel inicial de los Pokémon
+	 */
+	protected int pokemonLevel() {
+		return DEFAULT_POKEMON_LEVEL;
+	}
+
 	/**
 	 * Inicializa el juego con los datos proporcionados.
 	 * @param trainers Lista de nombres de entrenadores
@@ -65,14 +85,12 @@ public class POOBkemon implements Serializable {
 	 * @param attacks Mapa de ataques por entrenador (clave: nombre entrenador)
 	 * @param random Indica si se usan elementos aleatorios
 	 * @throws POOBkemonException Si hay errores en los datos de entrada
-	 * @throws NullPointerException Si algún parámetro requerido es nulo
 	 */
 	public void initGame(ArrayList<String> trainers,
 						 HashMap<String, ArrayList<Integer>> pokemons,
 						 HashMap<String, String[][]> items,
 						 HashMap<String, ArrayList<Integer>> attacks,
 						 boolean random) throws POOBkemonException{
-		// Validar datos básicos
 		if (trainers == null || trainers.isEmpty()) {
 			throw new POOBkemonException(POOBkemonException.MISSING_TRAINER_DATA);
 		}
@@ -83,13 +101,17 @@ public class POOBkemon implements Serializable {
 			throw new POOBkemonException(POOBkemonException.MISSING_ITEMS_DATA);
 		}
 
+		// Una nueva partida no hereda nada de la anterior (el singleton se reutiliza).
 		this.teams = new ArrayList<>();
 		this.finishBattle = false;
 		this.random = random;
+		this.winner = NO_WINNER;
+		this.counter = 1;
+		this.nid = 0;
+		this.trainerId = 0;
 
 		try {
 			for (String trainer : trainers) {
-				// Validar que el entrenador tenga datos asociados (sino despues dará error)
 				if (!pokemons.containsKey(trainer)){
 					throw new POOBkemonException(POOBkemonException.INCOMPLETE_DATA + " Entrenador: " + trainer);
 				}
@@ -98,21 +120,13 @@ public class POOBkemon implements Serializable {
 				String[][] trainerItems = items.get(trainer);
 				ArrayList<Integer> trainerAttacks = attacks.get(trainer);
 
-				// Validar formatos
 				if (pokemonIds == null || trainerItems == null || trainerAttacks == null) {
 					throw new POOBkemonException(POOBkemonException.INCOMPLETE_DATA);
 				}
 
-				//Error de Items aqui
-				BagPack bagPack = this.createBagPack(this.createItems(trainerItems));
-
-				Trainer train;
-				train = createTrainerByType(trainer, bagPack);
-				Team team = this.createTeam(this.createPokemons(pokemonIds, trainerAttacks),train );
-
-
-
-				this.teams.add(team);
+				BagPack bagPack = new BagPack(this.createItems(trainerItems));
+				Trainer train = createTrainerByType(trainer, bagPack);
+				this.teams.add(new Team(this.createPokemons(pokemonIds, trainerAttacks), train));
 			}
 
 			this.order = this.coin();
@@ -126,108 +140,58 @@ public class POOBkemon implements Serializable {
 	}
 
 	/**
-	 * Increments the value of the `nid` property by 1.
-	 * This method is used to update the internal state of the object
-	 * by advancing the numeric identifier for Pokémon.
+	 * Avanza el identificador que se asignará al siguiente Pokémon creado.
 	 */
 	protected void nextIdPokemon(){
-		this.nid = this.nid + 1;
+		this.nid++;
 	}
 
 	/**
 	 * Crea un entrenador según su tipo.
-	 * @param trainerName Nombre del entrenador (incluye tipo)
+	 * @param trainerName Nombre del entrenador (el tipo es el nombre sin dígitos finales)
 	 * @param bagPack Mochila del entrenador
 	 * @return Instancia del entrenador creado
 	 * @throws POOBkemonException Si no se puede crear el entrenador
 	 */
 	private Trainer createTrainerByType(String trainerName, BagPack bagPack) throws POOBkemonException {
 		String trainerType = trainerName.replaceAll("\\d+$", "");
-
-		Map<String, CheckedFunction<BagPack, Trainer>> trainerFactories = new HashMap<>();
-		trainerFactories.put("Player", bp -> new Trainer(trainerId++, bp));
-		trainerFactories.put("Offensive", bp -> new Offensive(trainerId++, bp));
-		trainerFactories.put("Defensive", bp -> new Defensive(trainerId++, bp));
-		trainerFactories.put("Expert", bp -> new Expert(trainerId++, bp));
-
-		CheckedFunction<BagPack, Trainer> factory = trainerFactories.getOrDefault(
-				trainerType,
-				bp -> new Switcher(trainerId++, bp)
-		);
-
-		return factory.apply(bagPack);
+		TrainerBuilder builder = TRAINER_BUILDERS.getOrDefault(trainerType, Switcher::new);
+		return builder.build(trainerId++, bagPack);
 	}
-	/**
-	 * Interfaz funcional para métodos que pueden lanzar excepciones.
-	 * @param <T> Tipo de entrada
-	 * @param <R> Tipo de retorno
-	 */
-	@FunctionalInterface
-	interface CheckedFunction<T, R> {
-		R apply(T t) throws POOBkemonException;
-	}
-
 
 	/**
-	 * Crea una maleta para el entrenador
-	 * @return bagPack Mochila del entrenador
-	 * @return ArrayList<Item>
+	 * Crea los ítems de un entrenador a partir de filas {tipo, cantidad[, cura]}.
+	 * Los tipos desconocidos se ignoran.
 	 */
-	private BagPack createBagPack(ArrayList<Item> items) {
-		BagPack bagPack = new BagPack(items);
-		return bagPack;
-	}
-	/*
-	* metodo para crear los items
-	* @return ArrayList<Item>
-	* @param items
-	 */
-	private ArrayList<Item> createItems(String[][] items) {
-		ArrayList<Item> item = new ArrayList<Item>();
-		Potion ite = null;
-		Revive ite0 = null;
-		for(String[] i: items){
-			if(i[0].equals("Potion")){
-				ite = new Potion(Integer.parseInt(i[1]),Integer.parseInt(i[2]));
-
-				item.add(ite);
-			}else if (i[0].equals("Revive")) {
-				ite0 = new Revive(Integer.parseInt(i[1]));
-				item.add(ite0);
+	private ArrayList<Item> createItems(String[][] itemData) {
+		ArrayList<Item> created = new ArrayList<>();
+		for (String[] data : itemData) {
+			if (data[0].equals("Potion")) {
+				created.add(new Potion(Integer.parseInt(data[1]), Integer.parseInt(data[2])));
+			} else if (data[0].equals("Revive")) {
+				created.add(new Revive(Integer.parseInt(data[1])));
 			}
 		}
-		return item;
+		return created;
 	}
 
 	/**
-	 * crear los Pokemons
-	 * @param pokemonIds Lista de IDs de Pokémon
-	 *
+	 * Crea los Pokémon de un entrenador asignando {@value #ATTACKS_PER_POKEMON} ataques consecutivos a cada uno.
+	 * @param pokemonIds IDs de Pokédex de los Pokémon
+	 * @param attackIds IDs de ataques, en bloques de {@value #ATTACKS_PER_POKEMON} por Pokémon
 	 */
 	public ArrayList<Pokemon> createPokemons(ArrayList<Integer> pokemonIds, ArrayList<Integer> attackIds) throws POOBkemonException {
-		ArrayList<Pokemon> pokemons = new ArrayList<>();
-		final int ATTACKS_PER_POKEMON = 4;
 		int totalAttacksNeeded = pokemonIds.size() * ATTACKS_PER_POKEMON;
-
-		// Verificar si hay suficientes ataques
 		if (attackIds.size() < totalAttacksNeeded) {
 			throw new IllegalArgumentException(
 					"No hay suficientes ataques. Se necesitan " + totalAttacksNeeded +
-							", pero solo hay " + attackIds.size()
-			);
-		} // hacer la exception en la clase correspondiente.
+							", pero solo hay " + attackIds.size());
+		}
+		ArrayList<Pokemon> pokemons = new ArrayList<>();
 		int attackIndex = 0;
 		for (Integer pokemonId : pokemonIds) {
-			// Obtener 4 ataques consecutivos para este Pokémon
-			List<Integer> attacksForPokemon = attackIds.subList(
-					attackIndex,
-					attackIndex + ATTACKS_PER_POKEMON
-			);
-
-			// Crear el Pokémon con sus ataques (asumo que createPokemon acepta una lista)
-			Pokemon pokemon = this.createPokemon(pokemonId, new ArrayList<>(attacksForPokemon));
-			pokemons.add(pokemon);
-			// Avanzar al siguiente bloque de 4 ataques
+			List<Integer> block = attackIds.subList(attackIndex, attackIndex + ATTACKS_PER_POKEMON);
+			pokemons.add(this.createPokemon(pokemonId, new ArrayList<>(block)));
 			attackIndex += ATTACKS_PER_POKEMON;
 		}
 		return pokemons;
@@ -240,21 +204,10 @@ public class POOBkemon implements Serializable {
 	 * @return Pokémon creado
 	 */
 	public Pokemon createPokemon(int id, ArrayList<Integer> attackIds) throws POOBkemonException{
-		PokemonRepository info = new PokemonRepository();
-		String[] infoPokemon = info.getPokemonId(id);
-		Pokemon pokemon = new Pokemon(nid,infoPokemon,attackIds, this.random, this.pokemonLvl);
+		String[] infoPokemon = new PokemonRepository().getPokemonId(id);
+		Pokemon pokemon = new Pokemon(nid, infoPokemon, attackIds, this.random, this.pokemonLevel());
 		this.nextIdPokemon();
 		return pokemon;
-	}
-
-	/**
-	 * Crea un equipo de Pokémon.
-	 * @param pokemones Lista de Pokémon del equipo
-	 * @return Equipo creado
-	 */
-	private Team createTeam(ArrayList<Pokemon> pokemones, Trainer trainer){
-		Team team = new Team(pokemones, trainer);
-		return team;
 	}
 
 	/**
@@ -267,7 +220,7 @@ public class POOBkemon implements Serializable {
 
 		int t1 = teams.get(0).getTrainer().getId();
 		int t2 = teams.get(1).getTrainer().getId();
-		if (Math.random()<0.5) {
+		if (Math.random() < 0.5) {
 			turnOrder.add(t1);
 			turnOrder.add(t2);
 		} else {
@@ -276,129 +229,131 @@ public class POOBkemon implements Serializable {
 		}
 		return turnOrder;
 	}
-	/**
-	*metodo para obtener las decisiones de la maquina
-	* @param idTrainer id del entrenador
-	* @return String[]
-	 **/
-	public String[] machineDecision(int idTrainer) throws POOBkemonException {
-		for (Team t : teams) {
-			if (idTrainer == t.getTrainer().getId()) {
-				Trainer trainer = t.getTrainer();
 
-				if (trainer instanceof Machine) {
-					String[] desci = ((Machine) trainer).machineMovement(this);
-					return desci;
+	// ------------------------------------------------------------------ búsquedas
+
+	/**
+	 * Equipo del entrenador indicado.
+	 * @throws POOBkemonException si no existe un entrenador con ese ID
+	 */
+	private Team findTeam(int trainerId) throws POOBkemonException {
+		for (Team team : teams) {
+			if (team.getTrainer().getId() == trainerId) {
+				return team;
+			}
+		}
+		throw new POOBkemonException("Entrenador con ID " + trainerId + " no encontrado");
+	}
+
+	/** Equipo rival del entrenador indicado, o {@code null} si no hay. */
+	private Team findOpponentTeam(int trainerId) {
+		for (Team team : teams) {
+			if (team.getTrainer().getId() != trainerId) {
+				return team;
+			}
+		}
+		return null;
+	}
+
+	/** Pokémon con ese ID en cualquier equipo, o {@code null} si no existe. */
+	private Pokemon searchPokemon(int id){
+		for (Team team : teams) {
+			for (Pokemon pokemon : team.getPokemons()) {
+				if (pokemon.getId() == id) {
+					return pokemon;
 				}
 			}
 		}
 		return null;
 	}
 
-
 	/**
-	 * Método para procesar las decisiones de los entrenadores en un turno
-	 * @param decisionTrainer Lista de decisiones del entrenador (String)
-	 * @throws POOBkemonException Si hay errores en las decisiones
+	 * Obtiene la decisión de un entrenador controlado por la máquina.
+	 * @param idTrainer id del entrenador
+	 * @return decisión, o {@code null} si el entrenador no es una máquina
 	 */
-	public void takeDecision(String[] decisionTrainer) throws POOBkemonException {
-		if(this.finishBattle)return;
-		if(this.counter % 2 == 0) {
-			this.applyStates();
-		}
-		this.counter++;
-		this.checkBattleStatus();
-		// Validar que haya dos entrenadores
-		if (this.teams.size() < 2) {
-			throw new POOBkemonException("Se necesitan al menos 2 entrenadores para una batalla");
-		}
-		// Procesar decisiones en el orden establecido (order)
-
-		String[] decision = decisionTrainer;
-
-		if (decision == null || decision.length == 0) {
-			throw new POOBkemonException("Se necesita introducir un movimiento valido");
-		}
-
-		if(this.winner == -1) {
-
-			String action = decision[0];
-			try {
-				switch (action) {
-					case "Attack":
-						if (decision.length < 3) throw new POOBkemonException("Faltan parámetros para Attack");
-						int attackId = Integer.parseInt(decision[1]);
-						int pokemonId1 = Integer.parseInt(decision[2]);
-						int trainerId = Integer.parseInt(decision[3]);
-						this.attack(attackId, trainerId, pokemonId1);
-						checkBattleStatus();
-						break;
-
-					case "UseItem":
-						if (decision.length < 2) throw new POOBkemonException("Faltan parámetros para UseItem");
-						int idTrainer = Integer.parseInt(decision[1]);
-						int pokemonId = Integer.parseInt(decision[2]);
-						String datoItem = decision[3];
-						this.useItem(idTrainer, pokemonId, datoItem);
-						break;
-
-					case "ChangePokemon":
-						if (decision.length < 3) throw new POOBkemonException("Faltan parámetros para ChangePokemon");
-						int newPokemonId = Integer.parseInt(decision[2]);
-						this.changePokemon(Integer.parseInt(decision[1]), newPokemonId);
-						String pokemonName = "";
-
-						pokemonName = this.searchPokemon(newPokemonId).getName();
-						moves.add("Player " + decision[1] + " cambió a Pokémon " + pokemonName);
-
-						break;
-
-					case "Run":
-						this.run(Integer.valueOf(decision[1]));
-						moves.add("Player " + decision[1] + " huyó de la batalla");
-						this.finishBattle = true;
-						break;
-
-					case "timeOver":
-						if (decision.length < 2) throw new POOBkemonException("Faltan parámetros para Attack");
-						int trainerid = Integer.parseInt(decision[1]);
-						int pokemonid = Integer.parseInt(decision[2]);
-						this.timeOver(trainerid, pokemonid);
-						moves.add("Player se le acabo el tiempo");
-						break;
-					default:
-						throw new POOBkemonException("Acción no reconocida: " + action);
-				}
-				checkBattleStatus();
-			} catch (NumberFormatException e) {
-				throw new POOBkemonException("Formato inválido en parámetros: " + e.getMessage());
-			}
-			// Verificar estado de la batalla después de ambos turnos
-			checkBattleStatus();
-		}
+	public String[] machineDecision(int idTrainer) throws POOBkemonException {
+		Trainer trainer = findTeam(idTrainer).getTrainer();
+		return trainer instanceof Machine ? ((Machine) trainer).machineMovement(this) : null;
 	}
 
 	/**
 	 * Verifica si el entrenador es una máquina.
-	 * @param TrainerId
-	 * @return
 	 */
-	public boolean isMachine(int TrainerId){
-
-		for (Team t : teams) {
-			if(t.getTrainer().getId() == TrainerId){
-				if(t.getTrainer() instanceof Machine){
-					return true;
-				}
+	public boolean isMachine(int trainerId){
+		for (Team team : teams) {
+			if (team.getTrainer().getId() == trainerId) {
+				return team.getTrainer() instanceof Machine;
 			}
 		}
 		return false;
 	}
+
+	// ------------------------------------------------------------------ turnos
+
+	/**
+	 * Procesa la decisión de un entrenador en su turno.
+	 * @param decisionTrainer decisión en el formato descrito en {@link Decision}
+	 * @throws POOBkemonException Si la decisión es inválida o no puede ejecutarse
+	 */
+	public void takeDecision(String[] decisionTrainer) throws POOBkemonException {
+		if (this.finishBattle) return;
+		if (this.counter % TURNS_PER_STATE_TICK == 0) {
+			this.applyStates();
+		}
+		this.counter++;
+		this.checkBattleStatus();
+		if (this.teams.size() < 2) {
+			throw new POOBkemonException("Se necesitan al menos 2 entrenadores para una batalla");
+		}
+		Decision.validate(decisionTrainer);
+		if (this.winner != NO_WINNER) return;
+
+		try {
+			switch (decisionTrainer[0]) {
+				case Decision.ATTACK:
+					this.attack(Integer.parseInt(decisionTrainer[1]),
+							Integer.parseInt(decisionTrainer[3]),
+							Integer.parseInt(decisionTrainer[2]));
+					break;
+				case Decision.USE_ITEM:
+					this.useItem(Integer.parseInt(decisionTrainer[1]),
+							Integer.parseInt(decisionTrainer[2]),
+							decisionTrainer[3]);
+					break;
+				case Decision.CHANGE_POKEMON:
+					this.switchPokemon(Integer.parseInt(decisionTrainer[1]),
+							Integer.parseInt(decisionTrainer[2]));
+					break;
+				case Decision.RUN:
+					int fleeingTrainer = Integer.parseInt(decisionTrainer[1]);
+					this.run(fleeingTrainer);
+					moves.add("Player " + fleeingTrainer + " huyó de la batalla");
+					break;
+				case Decision.TIME_OVER:
+					this.timeOver(Integer.parseInt(decisionTrainer[1]), Integer.parseInt(decisionTrainer[2]));
+					moves.add("Player se le acabo el tiempo");
+					break;
+				default:
+					throw new POOBkemonException("Acción no reconocida: " + decisionTrainer[0]);
+			}
+		} catch (NumberFormatException e) {
+			throw new POOBkemonException("Formato inválido en parámetros: " + e.getMessage());
+		}
+		checkBattleStatus();
+	}
+
+	/** Cambio de Pokémon decidido por el jugador, con registro en el historial. */
+	private void switchPokemon(int trainerId, int pokemonId) throws POOBkemonException {
+		this.changePokemon(trainerId, pokemonId);
+		moves.add("Player " + trainerId + " cambió a Pokémon " + this.searchPokemon(pokemonId).getName());
+	}
+
 	/**
 	 * Verifica el estado de la batalla y determina si ha terminado.
 	 */
-    public void checkBattleStatus() {
-		if(this.finishBattle)return;
+	public void checkBattleStatus() {
+		if (this.finishBattle) return;
 		for (Team team : teams) {
 			if (team.allFainted()) {
 				this.finishBattle = true;
@@ -409,16 +364,12 @@ public class POOBkemon implements Serializable {
 		}
 	}
 
-	/**
-	 * Busca el ganador de la batalla.
-	 * @param team
-	 */
-	private void searchWinner(Team team){
-		if(this.winner != -1)return;
-		for (Team t : teams) {
-			if(t.getTrainer().getId() != team.getTrainer().getId()){
-				this.setWinner(t);
-			}
+	/** Declara ganador al entrenador del equipo contrario al derrotado. */
+	private void searchWinner(Team defeated){
+		if (this.winner != NO_WINNER) return;
+		Team opponent = findOpponentTeam(defeated.getTrainer().getId());
+		if (opponent != null) {
+			this.setWinner(opponent);
 		}
 	}
 
@@ -429,211 +380,141 @@ public class POOBkemon implements Serializable {
 	 * @throws POOBkemonException Si el entrenador no existe o el Pokémon no es válido
 	 */
 	public void changePokemon(int trainerId, int pokemonId) throws POOBkemonException {
-		if(this.finishBattle)return;
-		// Buscar el entrenador
-		Trainer selectedTrainer = null;
-		Team team = null;
-		for (Team t : this.teams) {
+		if (this.finishBattle) return;
+		findTeam(trainerId).changePokemon(pokemonId);
+	}
 
-			if (t.getTrainer().getId() == trainerId) {
-				selectedTrainer = t.getTrainer();
-				team = t;
+	/** Acción automática cuando se acaba el tiempo del entrenador. */
+	private void timeOver(int trainerId, int pokemonId) throws POOBkemonException {
+		if (this.finishBattle) return;
+		findTeam(trainerId).timeOver(pokemonId);
+	}
+
+	/** El entrenador abandona: gana su rival y la batalla termina. */
+	private void run(int trainer) throws POOBkemonException {
+		if (this.finishBattle) return;
+		this.moves.add("GameOver para el jugador " + findTeam(trainer).getTrainer().getId());
+		Team opponent = findOpponentTeam(trainer);
+		if (opponent != null) {
+			this.setWinner(opponent);
+		}
+		this.finishBattle = true;
+	}
+
+	private void setWinner(Team team) {
+		this.winner = team.getTrainer().getId();
+	}
+
+	/**
+	 * @return ID del entrenador ganador
+	 * @throws POOBkemonException si todavía no hay ganador
+	 */
+	public int getWinner() throws POOBkemonException{
+		if (this.winner == NO_WINNER) {
+			throw new POOBkemonException("No hay ganador aún");
+		}
+		return this.winner;
+	}
+
+	/** Usa un ítem de la mochila del entrenador sobre uno de sus Pokémon. */
+	private void useItem(int trainer, int idPokemon, String itemName) throws POOBkemonException {
+		if (this.finishBattle) return;
+		checkBattleStatus();
+		if (this.finishBattle) return;
+		Team team = this.teams.stream()
+				.filter(t -> t.getTrainer().getId() == trainer)
+				.findFirst()
+				.orElseThrow(() -> new POOBkemonException("Error: No se encontró el Equipo, para el uso de Item"));
+		team.useItem(idPokemon, itemName);
+		this.moves.add("El entrenador " + trainer + " ha usado " + itemName
+				+ " en " + team.getPokemonById(idPokemon).getName());
+	}
+
+	/**
+	 * Realiza un ataque contra el Pokémon activo del equipo rival.
+	 * @param idAttack ID del ataque a utilizar
+	 * @param idTrainer ID del entrenador que ataca
+	 * @param idThrower ID del Pokémon que realiza el ataque
+	 */
+	public void attack(int idAttack, int idTrainer, int idThrower) throws POOBkemonException{
+		if (this.finishBattle) return;
+
+		Pokemon attacker = null;
+		Attack attackUsed = null;
+		for (Team team : teams) {
+			if (team.getTrainer().getId() == idTrainer) {
+				for (Pokemon pokemon : team.getPokemons()) {
+					if (pokemon.getId() == idThrower) {
+						attacker = pokemon;
+						attackUsed = pokemon.getAttack(idAttack);
+						break;
+					}
+				}
 				break;
 			}
 		}
-		// Verificar si se encontró el entrenador
-		if (selectedTrainer == null) {
-			throw new POOBkemonException("Entrenador con ID " + trainerId + " no encontrado");
-		}
-		// Intentar cambiar el Pokémon
-		team.changePokemon(pokemonId);
 
-	}
-
-	/**
-	 * Decision auntomatica si se le acaba el tiempo al entrenador
-	 * @param trainerId Id del entrador al que se le ejecuta la accion
-	 * @param pokemonId Id el pokemon al que se le ejecuta la accion
-	 */
-	private void timeOver(int trainerId, int pokemonId) throws POOBkemonException {
-		if(this.finishBattle)return;
-		Team team = null;
-		for (Team t : teams)
-			if (t.getTrainer().getId() == trainerId) {
-				team = t;
-			}
-		if (team == null) {
-			throw new POOBkemonException("Entrenador con ID " + trainerId + " no fue encontrado");
-		}
-		team.timeOver(pokemonId);
-	}
-	/**
-	 * metodo parasalir de la pelea
-	 */
-	private void run(int trainer) {
-		if(this.finishBattle)return;
-		Team team_1 = null;
-		for (Team team : teams) {
-			if (team.getTrainer().getId() == trainer) {
-				this.moves.add("GameOver para el jugador " + team.getTrainer().getId());
-			}else{
-				team_1 = team;
-			}
-		}
-		this.setWinner(team_1);
-		this.finishBattle = true;
-	}
-	/**
-	 * metodo para obtener el ganador de la pelea
-	 */
-	private void setWinner(Team team_1) {
-		this.winner = team_1.getTrainer().getId();
-	}
-	public int getWinner() throws POOBkemonException{
-		if(this.winner == -1){
-			throw new POOBkemonException("No hay ganador aún");
-		}else{
-			return this.winner;
-		}
-	}
-	/**
-	 * metodo para usar un item
-	 */
-	private void useItem(int trainer, int idPokemon, String datoItem) throws POOBkemonException {
-		if(this.finishBattle)return;
-		checkBattleStatus();
-		Team team_0 = null;
-		if (!finishBattle) {
-			for (Team team : teams) {
-				if (team.getTrainer().getId() == trainer) {
-					team_0 = team;
+		Pokemon target = null;
+		Team opponentTeam = findOpponentTeam(idTrainer);
+		if (opponentTeam != null) {
+			for (Pokemon pokemon : opponentTeam.getPokemons()) {
+				if (pokemon.getActive()) {
+					target = pokemon;
 					break;
 				}
 			}
 		}
-		if(team_0 == null)throw new POOBkemonException("Error: No se encontró el Equipo, para el uso de Item");
-		team_0.useItem(idPokemon,datoItem);
-		String message = "El entrenador " + trainer + " ha usado " + datoItem + " en " + team_0.getPokemonById(idPokemon).getName();
-		this.moves.add(message);
-	}
-	/**
-	 * Realiza un ataque entre Pokémon.
-	 * @param idAttack ID del ataque a utilizar
-	 * @param idThrower ID del Pokémon que realiza el ataque
-	 */
-	public void attack(int idAttack, int idTrainer, int idThrower) throws POOBkemonException{
-		if(this.finishBattle)return;
-		Attack damage = null;
-		Pokemon attacker = null;
-		Pokemon target = null;
-		// Primero: Encontrar el Pokémon atacante (idThrower) en el equipo del entrenador (idTrainer)
-		for (Team team : teams) {
-			if (team.getTrainer().getId() == idTrainer) { // Buscamos en el equipo del entrenador
-				for (Pokemon pokemon : team.getPokemons()) {
-					if (pokemon.getId() == idThrower) {
-						attacker = pokemon;
-						damage = pokemon.getAttack(idAttack);
-						break;
-					}
-				}
-				break; // Salimos después de encontrar el equipo correcto
-			}
-		}
 
-		// Segundo: Encontrar el Pokémon objetivo (el activo del otro equipo)
-		for (Team team : teams) {
-			if (team.getTrainer().getId() != idTrainer) { // Buscamos en el equipo contrario
-				for (Pokemon pokemon : team.getPokemons()) {
-					if (pokemon.getActive()) {
-						target = pokemon;
-						break;
-					}
-				}
-				break; // Solo necesitamos un objetivo activo
-			}
-		}
-
-
-
-		// Verificar que tenemos ambos Pokémon
 		if (attacker == null) {
 			throw new POOBkemonException("Error: No se encontró el Pokemon atacante");
 		}
-		if( damage == null){
+		if (attackUsed == null) {
 			throw new POOBkemonException("Error: No se encontró el ataque");
 		}
 		if (target == null) {
 			throw new POOBkemonException("Error: No se encontró un Pokémon objetivo activo");
 		}
-		// Aplicar el daño
-		damage.usePP();
-		String effect = target.getDamage(damage, attacker);
 
-		//agrego el mensaje de la ultima acción
-		if(effect.equals("")){
-			//si el pokemon atacante ya esta debilitado no agregar nada.
-		}else {
-			String message = attacker.getName() + " atacó a " + target.getName() + effect;
-			this.moves.add(message);
+		attackUsed.usePP();
+		String effect = target.getDamage(attackUsed, attacker);
+		// Si el atacante ya estaba debilitado el efecto viene vacío y no se registra nada.
+		if (!effect.isEmpty()) {
+			this.moves.add(attacker.getName() + " atacó a " + target.getName() + effect);
 		}
-		if(this.finishBattle)return;
-		// Cambio automático si es necesario
 		this.autoChangePokemon();
 	}
 
 	/**
-	 * Metodo que cambia el pokemon activo si es necesario.
-	 * @throws POOBkemonException
+	 * Reemplaza automáticamente al Pokémon activo debilitado por uno que siga en pie.
 	 */
 	private void autoChangePokemon() throws POOBkemonException{
-		if(this.finishBattle)return;
-			for (Team team : teams) {
-				for (Pokemon pokemon : team.getPokemons()) {
-					if (pokemon.getWeak() && pokemon.getActive()) {
-						this.checkBattleStatus();
-						if(this.finishBattle)return;
-						int savePokemon = this.getAlivePokemon(team.getTrainer().getId());
-						this.changePokemon(team.getTrainer().getId(), savePokemon);
-						String message = pokemon.getName() + " ha sido debilitado, cambiando a " + searchPokemon(savePokemon).getName();
-						this.moves.add(message);
-						return;
-					}
+		if (this.finishBattle) return;
+		for (Team team : teams) {
+			for (Pokemon pokemon : team.getPokemons()) {
+				if (pokemon.getWeak() && pokemon.getActive()) {
+					this.checkBattleStatus();
+					if (this.finishBattle) return;
+					int replacement = this.getAlivePokemon(team.getTrainer().getId());
+					this.changePokemon(team.getTrainer().getId(), replacement);
+					this.moves.add(pokemon.getName() + " ha sido debilitado, cambiando a "
+							+ searchPokemon(replacement).getName());
+					return;
 				}
 			}
-	}
-
-	/**
-	 * Busca un Pokemon en el equipo de un entrenador.
-	 * @param id
-	 * @return
-	 */
-	private Pokemon searchPokemon(int id){
-		try {
-			for (Team team : teams) {
-				for (Pokemon pokemon : team.getPokemons()) {
-					if (pokemon.getId() == id) {
-						return pokemon;
-					}
-				}
-			}
-			throw new POOBkemonException("Error: No se encontró el Pokemon con ID " + id);
-		}catch (POOBkemonException e){
-			return null;
 		}
 	}
 
 	/**
-	 * Obtiene el ID del Pokemon activo que no sea muy dificil.
-	 * @param trainerId
-	 * @return
+	 * ID de un Pokémon del entrenador que aún no esté debilitado.
+	 * @return el ID, o -1 si la batalla terminó o no queda ninguno
 	 */
 	private int getAlivePokemon(int trainerId){
-		if(this.finishBattle)return -1;
+		if (this.finishBattle) return -1;
 		int id = -1;
 		for (Team team : teams) {
-			if(team.getTrainer().getId() == trainerId){
-				for(Pokemon p: team.getPokemons()){
-					if(!p.getWeak()){
+			if (team.getTrainer().getId() == trainerId) {
+				for (Pokemon p : team.getPokemons()) {
+					if (!p.getWeak()) {
 						id = p.getId();
 					}
 				}
@@ -642,8 +523,20 @@ public class POOBkemon implements Serializable {
 		return id;
 	}
 
+	/** Aplica a todos los Pokémon los efectos de sus estados alterados. */
+	private void applyStates(){
+		for (Team team : teams) {
+			team.applyEffect();
+		}
+	}
+
+	// ------------------------------------------------------------------ consultas
+
 	public ArrayList<Team> getTeams(){
 		return teams;
+	}
+	public ArrayList<Team> teams(){
+		return this.teams;
 	}
 	public boolean isOk (){
 		return this.ok;
@@ -657,9 +550,6 @@ public class POOBkemon implements Serializable {
 	public boolean finishBattle(){
 		return this.finishBattle;
 	}
-	public ArrayList<Team> teams(){
-		return this.teams;
-	}
 	public ArrayList<Integer> getOrder(){
 		return order;
 	}
@@ -669,167 +559,133 @@ public class POOBkemon implements Serializable {
 	 * @return Mapa con ID de entrenador como clave y array de información del Pokémon activo como valor
 	 */
 	public HashMap<Integer, String[]> getCurrentPokemons() {
-		if(this.teams == null) throw new NullPointerException("No hay equipos");
+		if (this.teams == null) throw new NullPointerException("No hay equipos");
 		HashMap<Integer, String[]> pokemons = new HashMap<>();
 		for (Team t : this.teams) {
+			Trainer trainer = t.getTrainer();
 			try {
-				int trainerid = t.getTrainer().getId();
-				Trainer currentTrainer = t.getTrainer();
-				Pokemon currentPokemon = t.getPokemonById(currentTrainer.getCurrentPokemonId());// Obtiene el objeto Pokemon
-				String[] pokemonInfo = currentPokemon.getInfo();
-				pokemons.put(trainerid, pokemonInfo);
+				pokemons.put(trainer.getId(), t.getPokemonById(trainer.getCurrentPokemonId()).getInfo());
 			} catch (POOBkemonException e) {
-				pokemons.put(t.getTrainer().getId(), new String[]{"No active Pokémon"});
+				pokemons.put(trainer.getId(), new String[]{"No active Pokémon"});
 			}
 		}
 		return pokemons;
 	}
 
 	/**
-	 * Obtiene los IDs de los Pokémon inactivos de un entrenador.
-	 * @param idTrainer
-	 * @return
+	 * IDs de los Pokémon de un entrenador que no están en combate.
+	 * @return los IDs; {@code null} si la batalla terminó
 	 */
 	public int[] getPokemonsInactive(int idTrainer) {
-		if(this.finishBattle)return null;
-		for (Team t : teams) {
-			if (t.getTrainer().getId() == idTrainer) {
-				ArrayList<Pokemon> pokemons = t.getPokemons();
-				int activePokemonId = t.getTrainer().getCurrentPokemonId();
-				ArrayList<Integer> inactiveIds = new ArrayList<>();
-				for (Pokemon p : pokemons) {
-					if (!p.getActive()) {
-						inactiveIds.add(p.getId());
-					}
-				}
-				// Convertir ArrayList a arreglo
-				int[] result = new int[inactiveIds.size()];
-				for (int i = 0; i < inactiveIds.size(); i++) {
-					result[i] = inactiveIds.get(i);
-				}
-				return result;
-			}
-		}
-		return new int[0]; // Si no se encuentra el entrenador
+		if (this.finishBattle) return null;
+		return pokemonIds(idTrainer, false);
 	}
 
 	/**
-	 * Obtiene los IDs de los Pokémon activos de un entrenador.
-	 * @param idTrainer
-	 * @return
+	 * IDs de todos los Pokémon de un entrenador.
+	 * @return los IDs; {@code null} si la batalla terminó
 	 */
 	public int[] getPokemonsPerTrainer(int idTrainer) {
-		if(this.finishBattle)return null;
-		for (Team t : teams) {
-			if (t.getTrainer().getId() == idTrainer) {
-				ArrayList<Pokemon> pokemons = t.getPokemons();
-				int activePokemonId = t.getTrainer().getCurrentPokemonId();
-				ArrayList<Integer> inactiveIds = new ArrayList<>();
-				for (Pokemon p : pokemons) {
-					inactiveIds.add(p.getId());
-				}
-				// Convertir ArrayList a arreglo
-				int[] result = new int[inactiveIds.size()];
-				for (int i = 0; i < inactiveIds.size(); i++) {
-					result[i] = inactiveIds.get(i);
-				}
-				return result;
+		if (this.finishBattle) return null;
+		return pokemonIds(idTrainer, true);
+	}
+
+	private int[] pokemonIds(int idTrainer, boolean includeActive) {
+		for (Team team : teams) {
+			if (team.getTrainer().getId() == idTrainer) {
+				return team.getPokemons().stream()
+						.filter(p -> includeActive || !p.getActive())
+						.mapToInt(Pokemon::getId)
+						.toArray();
 			}
 		}
-		return new int[0]; // Si no se encuentra el entrenador
+		return new int[0];
 	}
 
 	/**
-	 * Obtiene la información de un Pokémon específico de un entrenador.
-	 *
-	 * @param idTrainer ID del entrenador dueño del Pokémon
-	 * @param idPokemon ID del Pokémon a buscar
-	 * @return Array de Strings con la información del Pokémon
-	 * @throws POOBkemonException Si no se encuentra el entrenador o el Pokémon,
-	 *                           o si ocurre un error al acceder a la información
+	 * Información de un Pokémon específico de un entrenador.
+	 * @return Array de Strings con la información del Pokémon; {@code null} si la batalla terminó
+	 * @throws POOBkemonException Si no se encuentra el entrenador o el Pokémon
 	 */
 	public String[] getPokemonInfo(int idTrainer, int idPokemon) throws POOBkemonException {
-		if(this.finishBattle)return null;
-		// Buscar el entrenador
-		String[] infoPokemon = null;
-		for (Team t : teams) {
-			if (t.getTrainer().getId() == idTrainer) {
-				infoPokemon = t.getPokemonById(idPokemon).getInfo();
-			}
-		}
-		if(infoPokemon == null) throw new POOBkemonException("Entrenador con ID " + idTrainer + " no encontrado");
-		return infoPokemon;
+		if (this.finishBattle) return null;
+		return findTeam(idTrainer).getPokemonById(idPokemon).getInfo();
 	}
 
 	/**
-	 * Obtiene la información de un Pokémon específico de un entrenador.
-	 * @return HasMap
+	 * Ataques del Pokémon activo de cada entrenador.
+	 * @return Mapa entrenador → información de ataques; {@code null} si la batalla terminó
 	 */
 	public HashMap<Integer, String[][]> getActiveAttacks(){
-		if(this.finishBattle)return null;
-		HashMap<Integer, String[][]> pokemons = new HashMap<>();
+		if (this.finishBattle) return null;
+		HashMap<Integer, String[][]> attacks = new HashMap<>();
 		for (Team t : this.teams) {
+			Trainer trainer = t.getTrainer();
 			try {
-				int trainerid = t.getTrainer().getId();
-				Trainer currentTrainer = t.getTrainer();
-				Pokemon currentPokemon = t.getPokemonById(currentTrainer.getCurrentPokemonId());// Obtiene el objeto Pokemon
-				String[][] pokemonInfo = currentPokemon.getAttacksInfo();
-				pokemons.put(trainerid, pokemonInfo);
+				attacks.put(trainer.getId(), t.getPokemonById(trainer.getCurrentPokemonId()).getAttacksInfo());
 			} catch (POOBkemonException e) {
-				pokemons.put(t.getTrainer().getId(), new String[][]{{"Sin ataques activos"}});
+				attacks.put(trainer.getId(), new String[][]{{"Sin ataques activos"}});
 			}
 		}
-		return pokemons;
+		return attacks;
 	}
-	//==================Informacion==========================
-	/**
-	 * Obtiene información de todos los Pokémon disponibles.
-	 * @return Lista de arrays con información de Pokémon
-	 */
+
+	// ------------------------------------------------------------------ catálogos
+
+	/** Cantidad de Pokémon del catálogo (sus IDs van de 1 a este valor). */
+	public static int pokemonCatalogSize() {
+		return new PokemonRepository().getPokemons().size();
+	}
+
+	/** Cantidad de movimientos del catálogo (sus IDs van de 1 a este valor). */
+	public static int moveCatalogSize() {
+		return new MovesRepository().getMoves().size();
+	}
+
+	/** Información de todos los Pokémon disponibles. */
 	public ArrayList<String[]> getPokInfo(){
-		ArrayList<String[]> info = new PokemonRepository().getPokemons();
-		return info;
+		return new PokemonRepository().getPokemons();
 	}
-	/**
-	 * Obtiene información de todos los objetos disponibles.
-	 * @return Lista de listas con información de objetos
-	 */
+
+	/** Información de todos los ítems disponibles; {@code null} si la batalla terminó. */
 	public ArrayList<ArrayList<String>> getItemInfo(){
-		if(this.finishBattle)return null;
-		ArrayList<ArrayList<String>> info = new ItemRepository().getItems();
-		return info;
+		if (this.finishBattle) return null;
+		return new ItemRepository().getItems();
 	}
-	/**
-	 * Obtiene información de un ataque específico.
-	 * @param id ID del ataque
-	 * @return String con información del ataque
-	 */
+
+	/** Descripción corta de un ataque. */
 	public String getMoveInfo(int id){
-		String info = new MovesRepository().getAttackId(id);
-		return info;
+		return new MovesRepository().getAttackId(id);
 	}
 
 	/**
-	 * Obtiene información de todos los ataques disponibles.
-	 * @param trainerId
-	 * @return
-	 * @throws POOBkemonException
+	 * Ítems de la mochila de un entrenador.
+	 * @throws POOBkemonException si el entrenador no existe
 	 */
 	public String[][] getInfoItems(int trainerId) throws POOBkemonException {
-		Trainer trainer = null;
-		for (Team t: this.teams){
-			if(t.getTrainer().getId() == trainerId){
-				trainer = t.getTrainer();
-			}
-		}
-		if(trainer == null) throw new POOBkemonException("Entrenador no encontrado");
-		return trainer.getBagPack().getItems();
+		return findTeam(trainerId).getTrainer().getBagPack().getItems();
 	}
+
+	/** Todos los ataques compatibles con un Pokémon. */
+	public ArrayList<String[]> getCompatibleAttacks(int pokemonId) {
+		return new MovesRepository().getCompatibleAttacks(pokemonId);
+	}
+
+	/** Descripción corta de un ataque. */
+	public String getAttackId(int id) {
+		return new MovesRepository().getAttackId(id);
+	}
+
+	/** Fila del catálogo correspondiente a un Pokémon de la Pokédex. */
+	public String[] getPokemonInfoById(int id){
+		return new PokemonRepository().getPokemonId(id);
+	}
+
+	// ------------------------------------------------------------------ persistencia
 
 	/**
 	 * Guarda la batalla en un archivo.
-	 * @param archivo
-	 * @throws POOBkemonException
+	 * @throws POOBkemonException si no se puede escribir el archivo
 	 */
 	public void save(File archivo) throws POOBkemonException {
 		try (ObjectOutputStream writer = new ObjectOutputStream(
@@ -843,15 +699,12 @@ public class POOBkemon implements Serializable {
 	}
 
 	/**
-	 * Carga una batalla de un archivo.
-	 * @param archivo
-	 * @return
-	 * @throws POOBkemonException
+	 * Carga una batalla desde un archivo.
+	 * @throws POOBkemonException si el archivo no existe o no contiene una batalla válida
 	 */
 	public static POOBkemon open(File archivo) throws POOBkemonException {
 		try (ObjectInputStream reader = new ObjectInputStream(
 				new BufferedInputStream(new FileInputStream(archivo)))) {
-
 			return (POOBkemon) reader.readObject();
 		} catch (FileNotFoundException e) {
 			throw new POOBkemonException("Archivo no encontrado al intentar abrir: " + archivo.getAbsolutePath());
@@ -862,53 +715,11 @@ public class POOBkemon implements Serializable {
 		}
 	}
 
-	/**
-	 * Agrega un movimiento a la lista de movimientos.
-	 * @param move
-	 */
 	public void addMove(String move){
 		this.moves.add(move);
 	}
 
-	/**
-	 * Cambia el estado de la batalla.
-	 * @param ok
-	 */
 	public void setOk(boolean ok){
 		this.ok = ok;
-	}
-
-	/**
-	 * Obtiene todos los ataques compatibles con un Pokémon.
-	 * @param pokemonId
-	 * @return
-	 */
-	public ArrayList<String[]> getCompatibleAttacks(int pokemonId) {
-		ArrayList<String[]> compatibleAttacks = new MovesRepository().getCompatibleAttacks(pokemonId);
-		return compatibleAttacks;
-	}
-
-	/**
-	 * Obtiene el nombre de un ataque.
-	 * @param id
-	 * @return
-	 */
-	public String getAttackId(int id) {
-		String move = new MovesRepository().getAttackId(id);
-		return move;
-	}
-
-	/**
-	 * Aplica los efectos de los Pokémon en la batalla.
-	 */
-	private void applyStates(){
-		for (Team team : teams) {
-			team.applyEffect();
-		}
-	}
-
-	public String[] getPokemonInfoById(int id){
-		PokemonRepository pokemonInfo = new PokemonRepository();
-		return pokemonInfo.getPokemonId(id);
 	}
 }

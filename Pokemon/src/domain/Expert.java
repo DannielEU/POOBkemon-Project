@@ -1,6 +1,5 @@
 package domain;
 
-import persistence.StatsRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -25,7 +24,6 @@ public class Expert extends Machine {
 	private static final double DEFENSIVE_WEIGHT = 0.35;
 	private static final double STATUS_WEIGHT = 0.2;
 
-	private final StatsRepository typeChart = new StatsRepository();
 	private final Random random = new Random();
 
 	public Expert(int id, BagPack bagPack) throws POOBkemonException {
@@ -79,63 +77,29 @@ public class Expert extends Machine {
 	 * @throws POOBkemonException if there is an issue with accessing the team's items or Pokémon data
 	 */
 	private String[] evaluateItemUsage(Team team, Pokemon active) throws POOBkemonException {
-		String[][] items = this.getBagPack().getItems();
-		double healthRatio = (double) active.currentHealth / active.maxHealth;
+		double healthRatio = healthRatio(active);
 
 		// 1. Revivir si está debilitado (máxima prioridad)
-		if (active.getWeak()) {
-			for (String[] item : items) {
-				if (item[0].equals("Revive") && Integer.parseInt(item[1]) > 0) {
-					return new String[] {
-							"UseItem",
-							String.valueOf(this.getId()),
-							String.valueOf(active.getId()),
-							"Revive"
-					};
-				}
-			}
+		if (active.getWeak() && firstAvailableItem("revive") != null) {
+			return createItemDecision("revive", active);
 		}
 
-		// 2. Usar la poción más adecuada según salud faltante
+		// 2. Usar la poción más adecuada según la salud faltante
 		int missingHealth = active.maxHealth - active.currentHealth;
-
-		// MegaPotion para salud crítica (cura 100+)
+		String potion = null;
 		if (healthRatio < CRITICAL_HEALTH && missingHealth > 100) {
-			for (String[] item : items) {
-				if (item[0].equals("Mega") && Integer.parseInt(item[1]) > 0) {
-					return createItemDecision("Mega", active);
-				}
-			}
+			potion = firstAvailableItem("Mega");                 // cura 100+
 		}
-
-		// HyperPotion para salud media-baja (cura 50-100)
-		if (healthRatio < LOW_HEALTH && missingHealth > 50) {
-			for (String[] item : items) {
-				if (item[0].equals("hyperPotion") && Integer.parseInt(item[1]) > 0) {
-					return createItemDecision("hyper", active);
-				}
-			}
+		if (potion == null && healthRatio < LOW_HEALTH && missingHealth > 50) {
+			potion = firstAvailableItem("hyperPotion");          // cura 50-100
 		}
-
-		// SuperPotion para salud moderada (cura 25-50)
-		if (healthRatio < LOW_HEALTH && missingHealth > 25) {
-			for (String[] item : items) {
-				if (item[0].equals("superPotion") && Integer.parseInt(item[1]) > 0) {
-					return createItemDecision("super", active);
-				}
-			}
+		if (potion == null && healthRatio < LOW_HEALTH && missingHealth > 25) {
+			potion = firstAvailableItem("superPotion");          // cura 25-50
 		}
-
-		// Potion básica para pequeñas curaciones (1-25)
-		if (healthRatio < LOW_HEALTH && random.nextDouble() < ITEM_USE_PROB) {
-			for (String[] item : items) {
-				if (item[0].equals("potion") && Integer.parseInt(item[1]) > 0) {
-					return createItemDecision("potion", active);
-				}
-			}
+		if (potion == null && healthRatio < LOW_HEALTH && random.nextDouble() < ITEM_USE_PROB) {
+			potion = firstAvailableItem("potion");               // cura 1-25
 		}
-
-		return null;
+		return potion == null ? null : createItemDecision(potion, active);
 	}
 
 	/**
@@ -154,12 +118,7 @@ public class Expert extends Machine {
 	 *         - item name
 	 */
 	private String[] createItemDecision(String itemName, Pokemon target) {
-		return new String[] {
-				"UseItem",
-				String.valueOf(this.getId()),
-				String.valueOf(target.getId()),
-				itemName
-		};
+		return Decision.useItem(getId(), target.getId(), itemName);
 	}
 
 	/**
@@ -172,7 +131,7 @@ public class Expert extends Machine {
 	 * @return {@code true} if the active Pokémon should be switched out; {@code false} otherwise.
 	 */
 	private boolean shouldSwitch(Pokemon myActive, Pokemon opponent) {
-		double effectiveness = calculateEffectiveness(myActive, opponent);
+		double effectiveness = calculateTypeEffectiveness(myActive, opponent);
 		double healthRatio = (double) myActive.currentHealth / myActive.maxHealth;
 
 		if (effectiveness == 0) return true; // Cambio obligatorio
@@ -229,11 +188,7 @@ public class Expert extends Machine {
 		if (candidates.isEmpty()) return null;
 
 		Pokemon bestChoice = selectBestSwitch(candidates, opponent);
-		return new String[] {
-				"ChangePokemon",
-				String.valueOf(this.getId()),
-				String.valueOf(bestChoice.getId())
-		};
+		return Decision.changePokemon(getId(), bestChoice.getId());
 	}
 
 	/**
@@ -265,7 +220,7 @@ public class Expert extends Machine {
 	private double evaluateSwitchCandidate(Pokemon candidate, Pokemon opponent) {
 		double score = 0;
 
-		double effectiveness = calculateEffectiveness(candidate, opponent);
+		double effectiveness = calculateTypeEffectiveness(candidate, opponent);
 		score += effectiveness * 0.4;
 
 		double defenseScore = (candidate.defense + candidate.specialDefense) / 200.0;
@@ -289,12 +244,7 @@ public class Expert extends Machine {
 		}
 
 		Attack bestAttack = selectBestAttack(attacks, attacker, opponent);
-		return new String[] {
-				"Attack",
-				String.valueOf(bestAttack.getIdInside()),
-				String.valueOf(attacker.getId()),
-				String.valueOf(this.getId())
-		};
+		return attackDecision(attacker, bestAttack);
 	}
 
 	/**
@@ -328,7 +278,7 @@ public class Expert extends Machine {
 		double score = 0;
 
 		try {
-			double effectiveness = typeChart.getMultiplier(attack.getType(), opponent.type);
+			double effectiveness = TYPE_CHART.getMultiplier(attack.getType(), opponent.type);
 			score += effectiveness * 0.3;
 
 			double powerScore = attack.getPower() / 150.0;
@@ -379,104 +329,9 @@ public class Expert extends Machine {
 		return 0.3;
 	}
 
-	/**
-	 * Retrieves a list of all available attacks for the specified Pokémon
-	 * that have remaining Power Points (PP).
-	 *
-	 * @param pokemon the Pokémon whose attacks are being evaluated
-	 * @return a list of available attacks where each attack has at least one PP remaining
-	 */
-	private List<Attack> getAvailableAttacks(Pokemon pokemon) {
-		List<Attack> available = new ArrayList<>();
-		for (Attack attack : pokemon.getAttacks()) {
-			if (attack.getPPActual() > 0) {
-				available.add(attack);
-			}
-		}
-		return available;
-	}
 
-	/**
-	 * Calculates the effectiveness multiplier of an attack based on the types of the attacking
-	 * and defending Pokémon. The method refers to a type chart to determine the relationship
-	 * between the types and returns a multiplier value.
-	 *
-	 * @param attacker the Pokémon that is initiating the attack, whose type will be used
-	 *                 to determine the effectiveness
-	 * @param defender the Pokémon that is being attacked, whose type will be used to
-	 *                 determine the resistance or weakness
-	 * @return a double representing the effectiveness multiplier. Values greater than 1.0 indicate
-	 *         increased effectiveness, values less than 1.0 indicate reduced effectiveness,
-	 *         and 1.0 denotes neutral effectiveness. If an error occurs, a default value of 1.0 is returned.
-	 */
-	private double calculateEffectiveness(Pokemon attacker, Pokemon defender) {
-		try {
-			return typeChart.getMultiplier(attacker.getType(), defender.type);
-		} catch (Exception e) {
-			return 1.0;
-		}
-	}
 
-	/**
-	 * Retrieves the team associated with the current trainer in the given game instance.
-	 * The team is identified by matching the trainer's ID with the ID of the current trainer.
-	 *
-	 * @param game the current instance of the POOBkemon game*/
-	private Team getMyTeam(POOBkemon game) throws POOBkemonException {
-		for (Team team : game.teams()) {
-			if (team.getTrainer().getId() == this.getId()) {
-				return team;
-			}
-		}
-		throw new POOBkemonException("Team not found for trainer: " + this.getId());
-	}
 
-	/**
-	 * Retrieves the currently active Pokémon for the given team.
-	 * The method determines the active Pokémon by accessing the trainer's current Pokémon ID.
-	 *
-	 * @param team the team containing the Pokémon and trainer whose active Pokémon should be retrieved
-	 * @return the active Pokémon for the specified team
-	 * @throws POOBkemonException if the active Pokémon cannot be retrieved due to an error in the team or trainer data
-	 */
-	private Pokemon getActivePokemon(Team team) throws POOBkemonException {
-		return team.getPokemonById(team.getTrainer().getCurrentPokemonId());
-	}
 
-	/**
-	 * Retrieves the opponent's active Pokémon from the game.
-	 *
-	 * @param game the current POOBkemon game instance to search for the opponent's active Pokémon.
-	 * @return the opponent's active Pokémon.
-	 * @throws POOBkemonException if no active opponent Pokémon is*/
-	private Pokemon getOpponentActivePokemon(POOBkemon game) throws POOBkemonException {
-		for (Team team : game.teams()) {
-			if (team.getTrainer().getId() != this.getId()) {
-				for (Pokemon pokemon : team.getPokemons()) {
-					if (pokemon.getActive()) {
-						return pokemon;
-					}
-				}
-			}
-		}
-		throw new POOBkemonException("No active opponent Pokémon found");
-	}
 
-	/**
-	 * Identifies and returns a list of candidate Pokémon for switching out the current Pokémon
-	 * based on specific criteria such as not being weak and not being the current Pokémon.
-	 *
-	 * @param team The team of Pokémon to evaluate for switch candidates.
-	 * @param current The currently active Pokémon that will not be considered as a candidate.
-	 * @return A list of Pokémon from the team that are eligible for switching, excluding weak Pokémon and the current Pokémon.
-	 */
-	private List<Pokemon> getSwitchCandidates(Team team, Pokemon current) {
-		List<Pokemon> candidates = new ArrayList<>();
-		for (Pokemon pokemon : team.getPokemons()) {
-			if (!pokemon.getWeak() && pokemon.getId() != current.getId()) {
-				candidates.add(pokemon);
-			}
-		}
-		return candidates;
-	}
 }

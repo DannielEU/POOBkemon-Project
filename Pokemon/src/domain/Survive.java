@@ -1,13 +1,16 @@
 package domain;
 
-import persistence.PokemonRepository;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * Modo supervivencia: los Pokémon se crean a nivel 100 y no se permite el uso de ítems.
+ */
 public class Survive extends POOBkemon {
+
+    private static final int SURVIVAL_LEVEL = 100;
+
     private static Survive instance;
-    private int pokemonLvl = 100;
 
     private Survive() {
         super();
@@ -19,24 +22,20 @@ public class Survive extends POOBkemon {
         }
         return instance;
     }
-    @Override
-    public Pokemon createPokemon(int id, ArrayList<Integer> attackIds)throws POOBkemonException{
-        PokemonRepository info = new PokemonRepository();
-        String[] infoPokemon = info.getPokemonId(id);
-        Pokemon pokemon = new Pokemon(nid,infoPokemon,attackIds, this.random, this.pokemonLvl);
-        this.nextIdPokemon();
-        return pokemon;
+
+    /**
+     * Descarta la instancia de supervivencia; la siguiente llamada a {@link #getInstance()} crea otra.
+     */
+    public static void resetInstance() {
+        instance = null;
+        POOBkemon.resetInstance();
     }
 
     @Override
-    public void initGame(ArrayList<String> trainers,
-                         HashMap<String, ArrayList<Integer>> pokemons,
-                         HashMap<String, String[][]> items,
-                         HashMap<String, ArrayList<Integer>> attacks,
-                         boolean random) throws POOBkemonException {
-        this.pokemonLvl = 100;
-        super.initGame(trainers, pokemons, items, attacks, random);
+    protected int pokemonLevel() {
+        return SURVIVAL_LEVEL;
     }
+
     @Override
     public String[][] getInfoItems(int trainerId) throws POOBkemonException {
         return new String[][]{};

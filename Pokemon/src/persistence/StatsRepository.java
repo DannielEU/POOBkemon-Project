@@ -1,53 +1,66 @@
 package persistence;
 
-import domain.Log;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Tabla de efectividad entre tipos (multiplicador de daño según tipo atacante y defensor).
+ */
 public class StatsRepository {
+
     private static final String ROOT_STATS_LOCATION = "resources/csv/MovesStatspok.csv";
-    private final Map<String, Map<String, Double>> typeChart = new HashMap<>();
+
+    private static volatile Map<String, Map<String, Double>> typeChart;
 
     public StatsRepository() {
-        try {
-            loadTypeChart();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.record(e);
-        }
+        load();
     }
 
-    private void loadTypeChart() throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get(ROOT_STATS_LOCATION));
-        if (lines.isEmpty()) {
-            throw new IllegalArgumentException("El archivo está vacío: " + ROOT_STATS_LOCATION);
-        }
-
-        String[] types = lines.get(0).split(",");
-
-        for (int i = 1; i < lines.size(); i++) {
-            String[] values = lines.get(i).split(",");
-            String defendingType = values[0];
-            Map<String, Double> multipliers = new HashMap<>();
-
-            for (int j = 1; j < values.length; j++) {
-                multipliers.put(types[j], Double.parseDouble(values[j]));
+    private static Map<String, Map<String, Double>> load() {
+        Map<String, Map<String, Double>> local = typeChart;
+        if (local == null) {
+            synchronized (StatsRepository.class) {
+                local = typeChart;
+                if (local == null) {
+                    local = readChart();
+                    typeChart = local;
+                }
             }
-
-            typeChart.put(defendingType, multipliers);
         }
+        return local;
     }
 
-    public double getMultiplier(String attackingType, String defendingType) {
-        return typeChart.get(capitalizar(defendingType)).get(capitalizar(attackingType));
+    private static Map<String, Map<String, Double>> readChart() {
+        Map<String, Map<String, Double>> chart = new HashMap<>();
+        String[] attackingTypes = CsvReader.readHeader(ROOT_STATS_LOCATION);
+        for (String[] row : CsvReader.readRows(ROOT_STATS_LOCATION)) {
+            Map<String, Double> multipliers = new HashMap<>();
+            for (int j = 1; j < row.length && j < attackingTypes.length; j++) {
+                multipliers.put(attackingTypes[j], Double.parseDouble(row[j]));
+            }
+            chart.put(row[0], multipliers);
+        }
+        return chart;
     }
+
+    /**
+     * @param attackingType tipo del ataque
+     * @param defendingType tipo del Pokémon que recibe el ataque
+     * @return multiplicador de daño; 1.0 si alguno de los tipos es desconocido
+     */
+    public double getMultiplier(String attackingType, String defendingType) {
+        Map<String, Double> row = load().get(capitalizar(defendingType));
+        if (row == null) {
+            return 1.0;
+        }
+        return row.getOrDefault(capitalizar(attackingType), 1.0);
+    }
+
     public static String capitalizar(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
+        if (s == null || s.isEmpty()) {
+            return s;
+        }
+        return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1).toLowerCase(Locale.ROOT);
     }
 }

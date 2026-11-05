@@ -1,6 +1,5 @@
 package domain;
 
-import persistence.StatsRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +26,6 @@ public class Defensive extends Machine {
     private static final double STATUS_SCORE_WEIGHT = 0.4;
     private static final double RANDOM_FACTOR_WEIGHT = 0.1;
 
-    private final StatsRepository typeChart = new StatsRepository();
     private final Random random = new Random();
 
     /**
@@ -77,9 +75,7 @@ public class Defensive extends Machine {
 
         // Consider using Protect if health is low
         if (shouldUseProtect(myActive)) {
-            return new String[] {"Attack", findProtectMove(myActive),
-                    String.valueOf(myActive.getId()),
-                    String.valueOf(this.getId())};
+            return Decision.attack(findProtectMove(myActive), myActive.getId(), getId());
         }
 
         // Default to selecting the best defensive attack
@@ -118,36 +114,16 @@ public class Defensive extends Machine {
      * @throws POOBkemonException if an error occurs during item evaluation, such as accessing invalid data
      */
     private String[] considerUsingItem(Team team, Pokemon active) throws POOBkemonException {
-        // Check if health is below threshold for healing
-        double healthRatio = (double) active.currentHealth / active.maxHealth;
-        if (healthRatio < HEALTH_DEFENSE_THRESHOLD) {
-            String[][] items = this.getBagPack().getItems();
-
-            // Prefer Potions over Revives
-            for (String[] item : items) {
-                if (item[0].equalsIgnoreCase("Potion") && Integer.parseInt(item[1]) > 0) {
-                    return new String[] {
-                            "UseItem",
-                            String.valueOf(this.getId()),
-                            String.valueOf(active.getId()),
-                            "Potion"
-                    };
-                }
-            }
-
-            // Consider Revive if no Potions available and Pokemon is fainted
-            if (active.getWeak()) {
-                for (String[] item : items) {
-                    if (item[0].equalsIgnoreCase("Revive") && Integer.parseInt(item[1]) > 0) {
-                        return new String[] {
-                                "UseItem",
-                                String.valueOf(this.getId()),
-                                String.valueOf(active.getId()),
-                                "Revive"
-                        };
-                    }
-                }
-            }
+        if (healthRatio(active) >= HEALTH_DEFENSE_THRESHOLD) {
+            return null;
+        }
+        // Se prefieren las pociones; el Revive solo sirve si el Pokémon está debilitado.
+        String potion = firstAvailableItem("potion", "superPotion", "hyperPotion", "Mega");
+        if (potion != null) {
+            return Decision.useItem(getId(), active.getId(), potion);
+        }
+        if (active.getWeak() && firstAvailableItem("revive") != null) {
+            return Decision.useItem(getId(), active.getId(), "revive");
         }
         return null;
     }
@@ -183,13 +159,13 @@ public class Defensive extends Machine {
 
     /**
      * Finds and returns the internal identifier of the "Protect" move for*/
-    private String findProtectMove(Pokemon pokemon) {
+    private int findProtectMove(Pokemon pokemon) {
         for (Attack attack : pokemon.getAttacks()) {
             if (attack.getName().equalsIgnoreCase("Protect") && attack.getPPActual() > 0) {
-                return String.valueOf(attack.getIdInside());
+                return attack.getIdInside();
             }
         }
-        return "1"; // Fallback to first attack if Protect not found (shouldn't happen if shouldUseProtect passed)
+        return 1; // Respaldo: primer ataque (no debería ocurrir si shouldUseProtect fue verdadero)
     }
 
     /**
@@ -212,12 +188,7 @@ public class Defensive extends Machine {
         }
 
         Attack bestAttack = selectBestDefensiveAttack(availableAttacks, attacker, opponent);
-        return new String[] {
-                "Attack",
-                String.valueOf(bestAttack.getIdInside()),
-                String.valueOf(attacker.getId()),
-                String.valueOf(this.getId())
-        };
+        return attackDecision(attacker, bestAttack);
     }
 
     /**
@@ -262,7 +233,7 @@ public class Defensive extends Machine {
 
         // Consider type effectiveness (but less important than for offensive)
         try {
-            double typeEffectiveness = typeChart.getMultiplier(attack.getType(), opponent.type);
+            double typeEffectiveness = TYPE_CHART.getMultiplier(attack.getType(), opponent.type);
             score += typeEffectiveness * 0.2;
         } catch (Exception e) {
             // Default to neutral effectiveness if error occurs
@@ -278,89 +249,10 @@ public class Defensive extends Machine {
         return score;
     }
 
-    /**
-     * Retrieves a list of available attacks for the specified Pokémon.
-     * An attack is considered available if its current PP (Power Points) is greater than 0.
-     *
-     * @param pokemon the Pokémon whose available attacks are to be retrieved
-     * @return a list of attacks that have remaining PP and can be used in battle
-     */
-    private List<Attack> getAvailableAttacks(Pokemon pokemon) {
-        List<Attack> available = new ArrayList<>();
-        for (Attack attack : pokemon.getAttacks()) {
-            if (attack.getPPActual() > 0) {
-                available.add(attack);
-            }
-        }
-        return available;
-    }
 
-    /**
-     * Calculates the type effectiveness of an attacker Pokémon's type against the defender Pokémon's type.
-     * The effectiveness is based on a predefined type chart, which determines
-     * multipliers for various type matchups.
-     *
-     * @param attacker the Pokémon performing the attack, whose type is used for calculation
-     * @param defender the Pokémon being attacked, whose type is used for calculation
-     * @return the type effectiveness multiplier as a double. A value greater than 1.0 indicates
-     *         a super-effective attack, less than 1.0 indicates a not very effective attack,
-     *         and 1.0 represents neutral effectiveness. If an error occurs, a neutral effectiveness
-     *         multiplier of 1.0 is returned by default.
-     */
-    private double calculateTypeEffectiveness(Pokemon attacker, Pokemon defender) {
-        try {
-            return typeChart.getMultiplier(attacker.getType(), defender.type);
-        } catch (Exception e) {
-            return 1.0; // Neutral effectiveness if error occurs
-        }
-    }
 
-    /**
-     * Retrieves the team associated with the trainer in the current game.
-     * It iterates through the teams in the game to find the one whose trainer
-     * matches the trainer's unique identifier.
-     *
-     * @param game the current instance of the POOBkemon game, containing information about all teams and trainers.
-     * @return the team associated with the trainer.
-     * @throws POOBkemonException if no team is found for the trainer.
-     */
-    private Team getMyTeam(POOBkemon game) throws POOBkemonException {
-        for (Team team : game.teams()) {
-            if (team.getTrainer().getId() == this.getId()) {
-                return team;
-            }
-        }
-        throw new POOBkemonException("Equipo no encontrado para el entrenador: " + this.getId());
-    }
 
-    /**
-     * Retrieves the active Pokémon from the specified team.
-     * The active Pokémon is determined based on the current Pokémon ID*/
-    private Pokemon getActivePokemon(Team team) throws POOBkemonException {
-        return team.getPokemonById(team.getTrainer().getCurrentPokemonId());
-    }
 
-    /**
-     * Retrieves the active Pokémon of the opposing team in the game. This method
-     * iterates through all teams in the game to find the opposing team's active Pokémon.
-     * The active Pokémon is determined by checking which Pokémon is marked as active
-     * within the opposing team. If no active opponent Pokémon is found, an exception is thrown.
-     *
-     * @param game the current instance of the POOBkemon game, containing details of
-     *             all teams and their states.
-     * @return the active Pokémon from the opposing team,*/
-    private Pokemon getOpponentActivePokemon(POOBkemon game) throws POOBkemonException {
-        for (Team team : game.teams()) {
-            if (team.getTrainer().getId() != this.getId()) {
-                for (Pokemon pokemon : team.getPokemons()) {
-                    if (pokemon.getActive()) {
-                        return pokemon;
-                    }
-                }
-            }
-        }
-        throw new POOBkemonException("No se encontró Pokémon oponente activo");
-    }
 
     /**
      * Creates a decision to switch the currently active Pokémon with a new one based on defensive strategy.
@@ -382,25 +274,9 @@ public class Defensive extends Machine {
         }
 
         Pokemon bestChoice = selectBestDefensiveSwitch(candidates, opponent);
-        return new String[] {
-                "ChangePokemon",
-                String.valueOf(this.getId()),
-                String.valueOf(bestChoice.getId())
-        };
+        return Decision.changePokemon(getId(), bestChoice.getId());
     }
 
-    /**
-     *
-     */
-    private List<Pokemon> getSwitchCandidates(Team team, Pokemon current) {
-        List<Pokemon> candidates = new ArrayList<>();
-        for (Pokemon pokemon : team.getPokemons()) {
-            if (!pokemon.getWeak() && pokemon.getId() != current.getId()) {
-                candidates.add(pokemon);
-            }
-        }
-        return candidates;
-    }
 
     /**
      * Selects the best defensive Pokémon switch from a list of candidates against the specified opponent.

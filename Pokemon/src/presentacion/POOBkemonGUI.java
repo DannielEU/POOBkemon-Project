@@ -1,43 +1,31 @@
 package presentacion;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.text.DefaultStyledDocument;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyleContext;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static presentacion.Theme.*;
+
 import domain.*;
-import presentacion.Auxiliar;
 import presentacion.ImagePanel;
 import presentacion.PokemonBattlePanel;
 
-public class POOBkemonGUI extends JFrame implements Auxiliar {
+public class POOBkemonGUI extends JFrame {
     //entradas del dominio
-    private boolean random = false; // si los stats son random
-    private ArrayList<String> players = new ArrayList<>(); //[trainer1, trainer2]
-    private HashMap<String,ArrayList<Integer>> pokemones = new HashMap<>(); //<trainer, pokemones(int)>
-    private HashMap<String,ArrayList<Integer>> moves = new HashMap<>(); //trianer, moves (en el orden de los pokemones)>
-    private HashMap<String,String[][]> items = new HashMap<>();
+    private final GameSetup setup = new GameSetup();
     private POOBkemon game;
-    //
-    private Clip clip;
+    private final SoundPlayer sound = new SoundPlayer();
     private JPanel IntroductionPanel;
     private JPanel menuPanel;
     private JPanel gameMode;
@@ -88,14 +76,6 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
 
     //
-    private static final String CHARACTER = "resources/personaje/";
-    private static final String MENU = "resources/menu/";
-    private static final String POKEMONES = "resources/pokemones/Emerald/";
-    private static final String BACK_PATH = POKEMONES + "Back/";
-    private static final String BACK_SHINY_PATH = POKEMONES + "BackShiny/";
-    private static final String NORMAL_PATH = POKEMONES + "Normal/";
-    private static final String SHINY_PATH = POKEMONES + "Shiny/";
-    private static final String PNG_EXT = ".png";
     private static final String songs =  "resources/songs/";
     private static final String selectionPanel = "resources/menu/battleMenuPanel.jpg";
     private static final String ITEMS = "resources/Items/";
@@ -104,7 +84,6 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
     private static final String TYPES =  "resources/pokemones/Emerald/types/";
     private static final String GALERIA_ITEMS =  "resources/menu/items.png";
     private static final String EXIT_ICON = "resources/icon/exit_icon.png";
-    private static final String FRAME = "resources/menu/frame/";
     private static final String APP_ICON = "resources/icon/window_icon.png";
     private static final String WINNER = "resources/menu/winner/";
 
@@ -218,9 +197,9 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         IntroductionPanel.addHierarchyListener(e -> {
             if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 if (IntroductionPanel.isShowing()) {
-                    reproducirSonido("1-03TitleTheme.wav");
+                    sound.loop("1-03TitleTheme.wav");
                 } else {
-                    detenerSonido();
+                    sound.stop();
                 }
             }
         });
@@ -260,11 +239,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         centerPanel.setOpaque(false);
         //
 
-        playButton = Auxiliar.crearBotonEstilizado("Jugar",new Rectangle(275, 110, 200, 60),new Color(240, 240, 240, 200));
-        pokedexButton = Auxiliar.crearBotonEstilizado("Pokedex",new Rectangle(275, 180, 200, 60),new Color(240, 240, 240, 200));
-        itemsButton = Auxiliar.crearBotonEstilizado("Items",new Rectangle(275, 250, 200, 60),new Color(240, 240, 240, 200));
-        stastRandomButton = Auxiliar.crearBotonEstilizado(this.random ? "Stat Aleatorios" : "Stat Base",new Rectangle(275, 320, 200, 60),new Color(240, 240, 240, 200));
-        backButtonIntro = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30), new Color(240, 240, 240, 200));
+        playButton = UiFactory.styledButton("Jugar",new Rectangle(275, 110, 200, 60),new Color(240, 240, 240, 200));
+        pokedexButton = UiFactory.styledButton("Pokedex",new Rectangle(275, 180, 200, 60),new Color(240, 240, 240, 200));
+        itemsButton = UiFactory.styledButton("Items",new Rectangle(275, 250, 200, 60),new Color(240, 240, 240, 200));
+        stastRandomButton = UiFactory.styledButton(setup.isRandomStats() ? "Stat Aleatorios" : "Stat Base",new Rectangle(275, 320, 200, 60),new Color(240, 240, 240, 200));
+        backButtonIntro = UiFactory.styledButton("Volver", new Rectangle(10, 450, 100, 30), new Color(240, 240, 240, 200));
         playButton.setPreferredSize(new Dimension(200, 60));
         pokedexButton.setPreferredSize(new Dimension(200, 60));
         itemsButton.setPreferredSize(new Dimension(200, 60));
@@ -329,7 +308,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         JTextPane infoPane = new JTextPane();
         infoPane.setBounds(440, 95, 280, 320);
         infoPane.setEditable(false);
-        infoPane.setFont(cargarFuentePixel(20));
+        infoPane.setFont(Assets.font(20));
         infoPane.setOpaque(false);
 
 
@@ -358,7 +337,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         downButton.setBorderPainted(false);
         downButton.setContentAreaFilled(false);
 
-        JButton backButton = Auxiliar.crearBotonTransparente("Volver", new Rectangle(30, 395, 130, 40),true);
+        JButton backButton = UiFactory.transparentButton("Volver", new Rectangle(30, 395, 130, 40),true);
 
         pokedexPanel.add(upButton);
         pokedexPanel.add(downButton);
@@ -370,7 +349,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             for (int i = 0; i < pokemones.size(); i++) {
                 String[] p = pokemones.get(i);
                 JLabel pokemonLabel = new JLabel((i + 1) + ". " + p[1]);
-                pokemonLabel.setFont(cargarFuentePixel(20));
+                pokemonLabel.setFont(Assets.font(20));
 
                 if (i == currentIndex[0]) {
                     try {
@@ -509,7 +488,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         JTextPane infoPanel = new JTextPane();  // Cambiamos a JTextPane para mejor control
         infoPanel.setBounds(300, 40, 390, 200);
         infoPanel.setEditable(false);
-        infoPanel.setFont(cargarFuentePixel(18));
+        infoPanel.setFont(Assets.font(18));
         infoPanel.setOpaque(false);  // Hacemos el fondo transparente
 
         //Aumenta el espacio entre lineas
@@ -521,13 +500,13 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         itemsPanel.add(infoPanel);
 
         JLabel messageLabel = new JLabel("ITEMS");
-        messageLabel.setFont(cargarFuentePixel(32));
+        messageLabel.setFont(Assets.font(32));
         messageLabel.setForeground(Color.white);
         messageLabel.setHorizontalAlignment(JLabel.LEFT);
         messageLabel.setBounds(30, 10, 400, 50);
 
         JLabel message1Label = new JLabel("INFORMACION SOBRE LOS ITEMS DEL JUEGO");
-        message1Label.setFont(cargarFuentePixel(24));
+        message1Label.setFont(Assets.font(24));
         message1Label.setForeground(Color.white);
         message1Label.setHorizontalAlignment(JLabel.LEFT);
         message1Label.setBounds(120, 360, 600, 100);
@@ -552,7 +531,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         prevButton.setContentAreaFilled(false);
 
 
-        JButton backButton = Auxiliar.crearBotonTransparente("Volver", new Rectangle(0, 395, 130, 40),true);
+        JButton backButton = UiFactory.transparentButton("Volver", new Rectangle(0, 395, 130, 40),true);
 
         itemsPanel.add(nextButton);
         itemsPanel.add(prevButton);
@@ -568,7 +547,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
             if (!items.isEmpty()) {
                 ArrayList<String> item = items.get(currentIndex[0]);
-                JButton itemButton = createImageButton(ITEMS + item.get(0) + ".png", 65, 140, 100, 100);
+                JButton itemButton = UiFactory.iconButton(ITEMS + item.get(0) + ".png", 65, 140, 100, 100);
                 itemsDisplayPanel.add(itemButton);
                 String texto = item.get(1).replace("\n", "\n\n");
                 infoPanel.setText(texto);
@@ -618,55 +597,55 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         //
 
         JLabel messageLabel = new JLabel("Modos de Juego");
-        messageLabel.setFont(cargarFuentePixel(27));
+        messageLabel.setFont(Assets.font(27));
         messageLabel.setForeground(Color.white);
         messageLabel.setHorizontalAlignment(JLabel.LEFT);
         messageLabel.setBounds(30, 12, 400, 50);
 
         JLabel messageLabel1 = new JLabel("Jugador vs Maquina");
-        messageLabel1.setFont(cargarFuentePixel(16));
+        messageLabel1.setFont(Assets.font(16));
         messageLabel1.setForeground(Color.white);
         messageLabel1.setHorizontalAlignment(JLabel.LEFT);
         messageLabel1.setBounds(160, 60, 550, 108);
 
         JLabel messageLabel11 = new JLabel("<html>Modo clasico, un jugador<br>juega contra una maquina.</html>");
-        messageLabel11.setFont(cargarFuentePixel(12));
+        messageLabel11.setFont(Assets.font(12));
         messageLabel11.setForeground(Color.white);
         messageLabel11.setHorizontalAlignment(JLabel.LEFT);
         messageLabel11.setBounds(160, 108, 223, 108);
 
         JLabel messageLabel2 = new JLabel("Supervivencia");
-        messageLabel2.setFont(cargarFuentePixel(16));
+        messageLabel2.setFont(Assets.font(16));
         messageLabel2.setForeground(Color.white);
         messageLabel2.setHorizontalAlignment(JLabel.LEFT);
         messageLabel2.setBounds(185, 225, 550, 50);
 
         JLabel messageLabel21 = new JLabel("<html>Un jugador juega contra<br>otro jugador y tendran que sobrevivir.</html>");
-        messageLabel21.setFont(cargarFuentePixel(12));
+        messageLabel21.setFont(Assets.font(12));
         messageLabel21.setForeground(Color.white);
         messageLabel21.setHorizontalAlignment(JLabel.LEFT);
         messageLabel21.setBounds(160, 265, 223, 50);
 
         JLabel messageLabel3 = new JLabel("Maquina vs Maquina");
-        messageLabel3.setFont(cargarFuentePixel(16));
+        messageLabel3.setFont(Assets.font(16));
         messageLabel3.setForeground(Color.white);
         messageLabel3.setHorizontalAlignment(JLabel.LEFT);
         messageLabel3.setBounds(163, 360, 550, 50);
 
         JLabel messageLabel31 = new JLabel("<html>Modo clasico, una maquina<br>juega contra otra maquina.</html>");
-        messageLabel31.setFont(cargarFuentePixel(12));
+        messageLabel31.setFont(Assets.font(12));
         messageLabel31.setForeground(Color.white);
         messageLabel31.setHorizontalAlignment(JLabel.LEFT);
         messageLabel31.setBounds(160, 404, 223, 50);
 
         JLabel messageLabel4 = new JLabel("Jugador vs Jugador");
-        messageLabel4.setFont(cargarFuentePixel(16));
+        messageLabel4.setFont(Assets.font(16));
         messageLabel4.setForeground(Color.white);
         messageLabel4.setHorizontalAlignment(JLabel.LEFT);
         messageLabel4.setBounds(516, 93, 223, 50);
 
         JLabel messageLabel41 = new JLabel("<html>Modo clasico, un jugador<br>juega contra otro jugador.</html>");
-        messageLabel41.setFont(cargarFuentePixel(12));
+        messageLabel41.setFont(Assets.font(12));
         messageLabel41.setForeground(Color.white);
         messageLabel41.setHorizontalAlignment(JLabel.LEFT);
         messageLabel41.setBounds(520, 135, 223, 50);
@@ -703,11 +682,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         messageButton3.setContentAreaFilled(false);
         messageButton4.setContentAreaFilled(false);
 
-        playerVsPlayer = createImageButton(BUTTONS + "pvp.png", 370, 80, 128, 128);
-        playerVsMachine = createImageButton(BUTTONS+"pvm.png",10, 80, 128, 128);
-        survival = createImageButton(BUTTONS+"survival.png",10, 215, 128, 128);
-        machines = createImageButton(BUTTONS+"mvm.png",10, 350, 128, 128);
-        backButtonMenu = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(640, 10, 80, 25),new Color(240, 240, 240, 200));
+        playerVsPlayer = UiFactory.iconButton(BUTTONS + "pvp.png", 370, 80, 128, 128);
+        playerVsMachine = UiFactory.iconButton(BUTTONS+"pvm.png",10, 80, 128, 128);
+        survival = UiFactory.iconButton(BUTTONS+"survival.png",10, 215, 128, 128);
+        machines = UiFactory.iconButton(BUTTONS+"mvm.png",10, 350, 128, 128);
+        backButtonMenu = UiFactory.styledButton("Volver",new Rectangle(640, 10, 80, 25),new Color(240, 240, 240, 200));
 
         centerPanel.add(messageLabel);
         centerPanel.add(messageLabel1);
@@ -774,7 +753,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         }
 
         JLabel titleLabel = new JLabel(titleMessage, JLabel.CENTER);
-        titleLabel.setFont(cargarFuentePixel(25));
+        titleLabel.setFont(Assets.font(25));
         titleLabel.setForeground(Color.white);
         titleLabel.setBounds(65, 12, 600, 50);
 
@@ -806,22 +785,22 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
         // Campos para jugador 1
         JLabel player1Label = new JLabel("Jugador 1:");
-        player1Label.setFont(cargarFuentePixel(20));
+        player1Label.setFont(Assets.font(20));
         player1Label.setForeground(Color.white);
         player1Label.setBounds(150, 140, 150, 30);
 
         player1Field = new JTextField();
-        player1Field.setFont(cargarFuentePixel(20));
+        player1Field.setFont(Assets.font(20));
         player1Field.setBounds(120, 360, 200, 30);
 
         // Campos para jugador 2
         JLabel player2Label = new JLabel("Jugador 2:");
-        player2Label.setFont(cargarFuentePixel(20));
+        player2Label.setFont(Assets.font(20));
         player2Label.setForeground(Color.white);
         player2Label.setBounds(460, 140, 150, 30);
 
         player2Field = new JTextField();
-        player2Field.setFont(cargarFuentePixel(20));
+        player2Field.setFont(Assets.font(20));
         player2Field.setBounds(420, 360, 200, 30);
 
         switch (gameModeName){
@@ -840,8 +819,8 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         }
 
 
-        backButtonMenu = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(10, 450, 80, 25),new Color(240, 240, 240, 200));
-        startButton = Auxiliar.crearBotonEstilizado("Siguiente", new Rectangle(605, 450, 120, 25), new Color(240, 240, 240, 200));
+        backButtonMenu = UiFactory.styledButton("Volver",new Rectangle(10, 450, 80, 25),new Color(240, 240, 240, 200));
+        startButton = UiFactory.styledButton("Siguiente", new Rectangle(605, 450, 120, 25), new Color(240, 240, 240, 200));
         centerPanel.add(titleLabel);
         centerPanel.add(titleLabelButton);
         centerPanel.add(p1Button);
@@ -863,48 +842,34 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             player1Name = player1Field.getText().trim();
             player2Name = player2Field.getText().trim();
 
-            if (player1Name.isEmpty() || player2Name.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Por favor ingresa nombres para ambos jugadores", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            if (player1Name.equals(player2Name)) {
-                JOptionPane.showMessageDialog(this, "Los nombres de los jugadores no pueden ser iguales", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            if (player1Name.length() > 10 || player2Name.length() > 10) {
-                JOptionPane.showMessageDialog(this, "Los nombres no pueden tener mas de 10 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            } else if (player1Name.length() < 3 || player2Name.length() < 3) {
-                JOptionPane.showMessageDialog(this, "Los nombres no pueden tener menos de 3 caracteres", "Error", JOptionPane.ERROR_MESSAGE);
+            String nameError = GameSetup.validatePlayerNames(player1Name, player2Name);
+            if (nameError != null) {
+                Dialogs.error("Nombres de jugadores", nameError);
                 return;
             }
 
-            switch (gameModeName){ //Revisar si afecta el juego
-                case("pvp") -> {
-                    createTrainers("Player1","Player2");
-                    prepareItem();
+            switch (gameModeName) {
+                case "pvp" -> {
+                    setup.startSetup("Player1", "Player2");
                     choosePokemon();
                 }
-                case("pvm") -> {
-                    String machine = chooseMachine("Escoge maquina","Por escoger una maquina");
-                    createTrainers("Player1",machine);
-                    prepareItem();
+                case "pvm" -> {
+                    setup.startSetup("Player1", chooseMachine("Escoge maquina", "Por escoger una maquina"));
                     choosePokemon();
                 }
-                case("survival") -> {
-                    createTrainers("Player1","Player2");
-                    if(booleanInput("Quiere inicial partida en survival?")) {
-                        createDataForGame();
-                        showTimer("s");
+                case "survival" -> {
+                    setup.startSetup("Player1", "Player2");
+                    if (booleanInput("Quiere inicial partida en survival?")) {
+                        showTimer(GameSetup.Mode.SURVIVAL);
                     }
                 }
-                case("mvm") -> {
-                    String machine1 = chooseMachine("Escoge maquina1","Por escoger una maquina");
-                    String machine2 = chooseMachine("Escoge maquina2","Por escoger una maquina");
-                    createTrainers(machine1+"1",machine2+"2");
-                    prepareItem();
+                case "mvm" -> {
+                    String machine1 = chooseMachine("Escoge maquina1", "Por escoger una maquina");
+                    String machine2 = chooseMachine("Escoge maquina2", "Por escoger una maquina");
+                    setup.startSetup(machine1 + "1", machine2 + "2");
                     choosePokemon();
                 }
+                default -> throw new IllegalStateException("Modo de juego desconocido: " + gameModeName);
             }
         });
         backButtonMenu.addActionListener(e -> refresh(gameMode));
@@ -928,7 +893,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
         // Título
         JLabel titleLabel = new JLabel("Elige los pokemones", JLabel.LEFT);
-        titleLabel.setFont(cargarFuentePixel(25));
+        titleLabel.setFont(Assets.font(25));
         titleLabel.setForeground(Color.white);
         titleLabel.setBounds(30, 10, 400, 60);
         choosePokemonPanel.add(titleLabel);
@@ -943,13 +908,13 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
 
         // Etiqueta del turno
         JLabel turnLabel = new JLabel(player1Name + " elige: ", JLabel.LEFT);
-        turnLabel.setFont(cargarFuentePixel(22));
+        turnLabel.setFont(Assets.font(22));
         turnLabel.setForeground(Color.black);
         turnLabel.setBounds(55, 335, 220, 35);
         choosePokemonPanel.add(turnLabel);
 
         // Personaje actual
-        JLabel characterImage = new JLabel(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Bruno.png"), 250, 250));
+        JLabel characterImage = new JLabel(Assets.scale(new ImageIcon(CHARACTER + "Bruno.png"), 250, 250));
         characterImage.setBounds(20, 95, 250, 250);
         choosePokemonPanel.add(characterImage);
 
@@ -976,11 +941,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         choosePokemonPanel.add(scrollPane);
 
         // Botones de navegación
-        JButton backButton = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(10, 450, 100, 30),
+        JButton backButton = UiFactory.styledButton("Volver", new Rectangle(10, 450, 100, 30),
                 new Color(240, 240, 240, 200));
         choosePokemonPanel.add(backButton);
 
-        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(630, 450, 100, 30),
+        JButton doneButton = UiFactory.styledButton("Listo", new Rectangle(630, 450, 100, 30),
                 new Color(240, 240, 240, 200));
         doneButton.setVisible(false);
         choosePokemonPanel.add(doneButton);
@@ -988,7 +953,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         // Añadir Pokémon a la grid con diseño mejorado
         for (int i = 1; i <= 386; i++) {
             final int pokemonId = i;
-            JButton pokemonButton = createImageButton(POKEMONES + "Icon/" + i + ".png", 1, 1, 50, 50);
+            JButton pokemonButton = UiFactory.iconButton(POKEMONES + "Icon/" + i + ".png", 1, 1, 50, 50);
             pokemonButton.setOpaque(false);
             pokemonButton.setContentAreaFilled(false);
             pokemonButton.setBorder(BorderFactory.createCompoundBorder(
@@ -1026,7 +991,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                             // Cambiar al jugador 2
                             currentPlayer[0] = 2;
                             turnLabel.setText(player2Name + " elige: ");
-                            characterImage.setIcon(Auxiliar.scaleIcon(new ImageIcon(CHARACTER + "Aura.png"), 250, 250));
+                            characterImage.setIcon(Assets.scale(new ImageIcon(CHARACTER + "Aura.png"), 250, 250));
 
                             // Deshabilitar solo los Pokémon seleccionados por el jugador 1
                             Component[] components = gridPanel.getComponents();
@@ -1057,7 +1022,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         });
 
         doneButton.addActionListener(e -> {
-            assingPokemon(selectedPokemons1, selectedPokemons2);
+            setup.assignPokemons(selectedPokemons1, selectedPokemons2);
             chooseMoves();
         });
         setContentPane(choosePokemonPanel);
@@ -1084,8 +1049,8 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         chooseMovesPanel.setLayout(new BorderLayout());
 
         ArrayList<Integer> pokemonesList = new ArrayList<>();
-        pokemonesList.addAll(this.pokemones.get(players.get(0)));
-        pokemonesList.addAll(this.pokemones.get(players.get(1)));
+        pokemonesList.addAll(setup.pokemonsOf(0));
+        pokemonesList.addAll(setup.pokemonsOf(1));
 
         AtomicReference<Integer> currentPokemonIndex = new AtomicReference<>(0);
         AtomicReference<Integer> currentPlayer = new AtomicReference<>(0);
@@ -1100,11 +1065,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         infoPanel.setPreferredSize(new Dimension(750, 180));
 
         JLabel playerLabel = new JLabel("", JLabel.CENTER);
-        playerLabel.setFont(cargarFuentePixel(22));
+        playerLabel.setFont(Assets.font(22));
         playerLabel.setForeground(Color.WHITE);
 
         JLabel pokemonLabel = new JLabel("", JLabel.CENTER);
-        pokemonLabel.setFont(cargarFuentePixel(18));
+        pokemonLabel.setFont(Assets.font(18));
         pokemonLabel.setForeground(Color.WHITE);
 
         JPanel textPanel = new JPanel(new GridLayout(2, 1));
@@ -1164,9 +1129,9 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         buttonPanel.setOpaque(false);
         buttonPanel.setPreferredSize(new Dimension(750, 50));
 
-        JButton backButton = Auxiliar.crearBotonEstilizado("Volver", new Rectangle(0, 0, 120, 40),
+        JButton backButton = UiFactory.styledButton("Volver", new Rectangle(0, 0, 120, 40),
                 new Color(240, 240, 240, 200));
-        JButton nextButton = Auxiliar.crearBotonEstilizado("Siguiente", new Rectangle(0, 0, 120, 40),
+        JButton nextButton = UiFactory.styledButton("Siguiente", new Rectangle(0, 0, 120, 40),
                 new Color(240, 240, 240, 200));
         nextButton.setEnabled(false);
 
@@ -1206,7 +1171,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                         "<font color='gray'>" + " | Info: " + movePP + "</font></center></html>");
                 moveButton.setBackground(getTypeColor(moveType));
                 moveButton.setForeground(Color.WHITE);
-                moveButton.setFont(cargarFuentePixel(14));
+                moveButton.setFont(Assets.font(14));
                 moveButton.setFocusPainted(false);
                 moveButton.setMaximumSize(new Dimension(330, 50));
                 moveButton.setBorder(BorderFactory.createCompoundBorder(
@@ -1280,7 +1245,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                         movesPlayer2.addAll(selectedMoves.get(i));
                     }
                 }
-                assingMoves(movesPlayer1, movesPlayer2);
+                setup.assignMoves(movesPlayer1, movesPlayer2);
                 chooseItems();
             }
         });
@@ -1333,14 +1298,14 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         JPanel chooseItemsPanel = new ImagePanel(new BorderLayout(), MENU + "fondoPre7.png");
         chooseItemsPanel.setOpaque(false);
         //
-        JLabel turnLabel = new JLabel(player1Name + "elige", JLabel.CENTER);
+        JLabel turnLabel = new JLabel(player1Name + " elige", JLabel.CENTER);
         turnLabel.setOpaque(true);  // Esto es crucial para que el fondo sea visible
         turnLabel.setBackground(new Color(50, 50, 50));
-        turnLabel.setFont(cargarFuentePixel(18));
+        turnLabel.setFont(Assets.font(18));
         turnLabel.setForeground(Color.blue);
         chooseItemsPanel.add(turnLabel, BorderLayout.NORTH);
         //
-        JButton backButtonGameMode = Auxiliar.crearBotonEstilizado("Volver",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
+        JButton backButtonGameMode = UiFactory.styledButton("Volver",new Rectangle(275, 100, 20, 60),new Color(240, 240, 240, 200));
         //
         JPanel panelSur = new JPanel(new BorderLayout());
         panelSur.setOpaque(false);
@@ -1353,16 +1318,16 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         leftPanel.add(panelSur, BorderLayout.SOUTH);
         //
         ImageIcon Character = new ImageIcon(CHARACTER + "Bruno.png");
-        ImageIcon scaledCharacter = Auxiliar.scaleIcon(Character, 192, 192);
+        ImageIcon scaledCharacter = Assets.scale(Character, 192, 192);
         JLabel characterImage = new JLabel(scaledCharacter);
         characterImage.setHorizontalAlignment(JLabel.CENTER);
 
         ImageIcon Character2 = new ImageIcon(CHARACTER + "Aura.png");
-        ImageIcon scaledCharacter2 = Auxiliar.scaleIcon(Character2, 192, 192);
+        ImageIcon scaledCharacter2 = Assets.scale(Character2, 192, 192);
         JLabel characterImage2 = new JLabel(scaledCharacter2);
         characterImage2.setHorizontalAlignment(JLabel.CENTER);
 
-        JButton doneButton = Auxiliar.crearBotonEstilizado("Listo", new Rectangle(275, 100, 100, 60), new Color(240, 240, 240, 200));
+        JButton doneButton = UiFactory.styledButton("Listo", new Rectangle(275, 100, 100, 60), new Color(240, 240, 240, 200));
         doneButton.setBackground(new Color(200, 200, 200, 150));
 
         JPanel rightContent = new JPanel(new GridBagLayout());
@@ -1418,47 +1383,15 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         centerPanel.add(scrollContainer, BorderLayout.CENTER);
         //botones item
         final int[] contador = {0};
-        JButton itemButton1 = createImageButton("x2", ITEMS+"potion.png",1,1,100,100,20,false,false);
-        JButton itemButton2= createImageButton("x2", ITEMS+"superPotion.png",1,1,100,100,20,false,false);
-        JButton itemButton3 = createImageButton("x2", ITEMS+"hyperPotion.png",1,1,100,100,20,false,false);
-        JButton itemButton4 = createImageButton("x1", ITEMS+"revive.png",1,1,100,100,20,false,false);
+        JButton itemButton1 = UiFactory.imageTextButton("x2", ITEMS+"potion.png",1,1,100,100,20,false,false);
+        JButton itemButton2= UiFactory.imageTextButton("x2", ITEMS+"superPotion.png",1,1,100,100,20,false,false);
+        JButton itemButton3 = UiFactory.imageTextButton("x2", ITEMS+"hyperPotion.png",1,1,100,100,20,false,false);
+        JButton itemButton4 = UiFactory.imageTextButton("x1", ITEMS+"revive.png",1,1,100,100,20,false,false);
 
-        itemButton1.addActionListener(ev -> {
-            String currentPlayer = players.get(contador[0]);
-            if(Integer.parseInt(this.items.get(currentPlayer)[0][1]) < 2){
-                assingItem(contador[0], 0);
-                itemButton1.setText("x"+(2-Integer.parseInt(this.items.get(currentPlayer)[0][1])));
-            } else {
-                Auxiliar.mostrarError("Maximo de item", "Ya tiene el maximo de este item");
-            }
-        });
-        itemButton2.addActionListener(ev -> {
-            String currentPlayer = players.get(contador[0]);
-            if(Integer.parseInt(this.items.get(currentPlayer)[1][1]) < 2){
-                assingItem(contador[0], 1);
-                itemButton2.setText("x"+(2-Integer.parseInt(this.items.get(currentPlayer)[1][1])));
-            } else {
-                Auxiliar.mostrarError("Maximo de item", "Ya tiene el maximo de este item");
-            }
-        });
-        itemButton3.addActionListener(ev -> {
-            String currentPlayer = players.get(contador[0]);
-            if(Integer.parseInt(this.items.get(currentPlayer)[2][1]) < 2){
-                assingItem(contador[0], 2);
-                itemButton3.setText("x"+(2-Integer.parseInt(this.items.get(currentPlayer)[2][1])));
-            } else {
-                Auxiliar.mostrarError("Maximo de item", "Ya tiene el maximo de este item");
-            }
-        });
-        itemButton4.addActionListener(ev -> {
-            String currentPlayer = players.get(contador[0]);
-            if(Integer.parseInt(this.items.get(currentPlayer)[3][1]) < 1){
-                assingItem(contador[0], 3);
-                itemButton4.setText("x"+(1-Integer.parseInt(this.items.get(currentPlayer)[3][1])));
-            } else {
-                Auxiliar.mostrarError("Maximo de item", "Ya tiene el maximo de este item");
-            }
-        });
+        bindItemButton(itemButton1, 0, 2, contador);
+        bindItemButton(itemButton2, 1, 2, contador);
+        bindItemButton(itemButton3, 2, 2, contador);
+        bindItemButton(itemButton4, 3, 1, contador);
 
         gridPanel.add(itemButton1);
         gridPanel.add(itemButton2);
@@ -1478,11 +1411,11 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 rightContentPanel.revalidate();
                 rightContentPanel.repaint();
                 gridPanel.setBackgroundImage(MENU + "red.png");
-                turnLabel.setText(player1Name + "elige");
+                turnLabel.setText(player1Name + " elige");
                 turnLabel.setForeground(new Color(255, 100, 100));
                 contador[0]++;
             }else{
-                showTimer("p");
+                showTimer(GameSetup.Mode.NORMAL);
             }
         });
         chooseItemsPanel.add(leftPanel, BorderLayout.WEST);
@@ -1493,7 +1426,25 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         revalidate();
         repaint();
     }
-    private void showTimer(String mode) {
+    /**
+     * Conecta un botón de ítem: cada clic suma una unidad al jugador en turno hasta el máximo permitido.
+     *
+     * @param itemIndex posición del ítem en la mochila
+     * @param maxUnits  unidades máximas por jugador
+     * @param turn      jugador en turno (índice 0 o 1) en {@code turn[0]}
+     */
+    private void bindItemButton(JButton button, int itemIndex, int maxUnits, int[] turn) {
+        button.addActionListener(ev -> {
+            int owned = Integer.parseInt(setup.itemsOf(turn[0])[itemIndex][1]);
+            if (owned < maxUnits) {
+                setup.addItem(turn[0], itemIndex);
+                button.setText("x" + (maxUnits - owned - 1));
+            } else {
+                Dialogs.error("Maximo de item", "Ya tiene el maximo de este item");
+            }
+        });
+    }
+    private void showTimer(GameSetup.Mode mode) {
         JPanel timerPanel = new ImagePanel(null, MENU + "3.png");
         refresh(timerPanel);
 
@@ -1527,7 +1478,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         timer2.start();
         timer3.start();
     }
-    private void showBattleStart(String mode) {
+    private void showBattleStart(GameSetup.Mode mode) {
         JPanel BattleStartPanel = new ImagePanel(new BorderLayout(), MENU + "battleStart.png");
         BattleStartPanel.setLayout(new BorderLayout());
 
@@ -1585,10 +1536,10 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
             if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 if (BattleStartPanel.isShowing()) {
                     animationTimer.start();
-                    reproducirSonido("1-14.ReceivedBattlePoints_.wav");
+                    sound.loop("1-14.ReceivedBattlePoints_.wav");
                 } else {
                     animationTimer.stop();
-                    detenerSonido();
+                    sound.stop();
 
                 }
             }
@@ -1613,15 +1564,18 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         refresh(battlePanel);
     }
     private void showFishPanel(){
-        int winnerId = 0;
+        int winnerId;
         try {
             winnerId = game.getWinner();
         } catch (POOBkemonException e) {
-            throw new RuntimeException(e);
+            Log.record(e);
+            Dialogs.error("No se pudo determinar el ganador", e.getMessage());
+            refresh(menuPanel);
+            return;
         }
         JPanel FishPanel = new ImagePanel(new BorderLayout(), WINNER+winnerId+PNG_EXT);
         JLabel message = new JLabel("Jugador " +winnerId+" a ganado", SwingConstants.CENTER);
-        message.setFont(Auxiliar.cargarFuentePixel(30));
+        message.setFont(Assets.font(30));
         message.setForeground(Color.WHITE);
         FishPanel.add(message, BorderLayout.CENTER);
         Timer timer = new Timer(5000, e -> {
@@ -1635,161 +1589,15 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
         repaint();
     }
     // ========== Métodos auxiliares ========== //
-    private void initMode(String mode){
+    private void initMode(GameSetup.Mode mode) {
         try {
-            if (mode.equals("s")) {
-                this.game.resetInstance();
-                this.game = Survive.getInstance();
-                game.initGame(this.players, this.pokemones, this.items, this.moves, this.random);
-            } else if (mode.equals("p")) {
-                this.game.resetInstance();
-                this.game = POOBkemon.getInstance();
-                game.initGame(this.players, this.pokemones, this.items, this.moves, this.random);
-            }
+            game = setup.createGame(mode);
             startBattle(game);
-        }catch (POOBkemonException e){
+        } catch (POOBkemonException e) {
             Log.record(e);
             refresh(IntroductionPanel);
-            Auxiliar.mostrarError("POOBkemon Error",e.getMessage());
+            Dialogs.error("POOBkemon Error", e.getMessage());
         }
-    }
-    private JButton createImageButton(String imagePath, int x, int y, int width, int height) {
-        JButton button = new JButton();
-        button.setBounds(x, y, width, height);
-
-        try {
-            // Cargar y escalar la imagen
-            BufferedImage originalImage = ImageIO.read(new File(imagePath));
-            Image scaledImage = originalImage.getScaledInstance(width, height, Image.SCALE_SMOOTH);
-            button.setIcon(new ImageIcon(scaledImage));
-        } catch (IOException e) {
-            Log.record(e);
-            button.setText("No image");
-        }
-
-        // Hacer el botón transparente
-        button.setOpaque(false);
-        button.setContentAreaFilled(false);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-
-        return button;
-    }
-    private JButton createImageButton(String text, String imagePath, int x, int y, int width, int height, int fontSize, boolean alineado, boolean cubrirBoton) {
-        JButton button = new JButton();
-
-        // Soporte para saltos de línea usando HTML
-        String formattedText = "<html>" + text.replace("\n", "<br>") + "</html>";
-        button.setText(formattedText);
-
-        // Si cubrirBoton es true, la imagen será del tamaño completo del botón
-        int iconWidth = cubrirBoton ? width : 50;
-        int iconHeight = cubrirBoton ? height : 50;
-
-        ImageIcon icon = new ImageIcon(imagePath);
-        Image scaledImage = icon.getImage().getScaledInstance(iconWidth, iconHeight, Image.SCALE_SMOOTH);
-        button.setIcon(new ImageIcon(scaledImage));
-
-        if (cubrirBoton) {
-            // Imagen como fondo completo, texto encima
-            button.setHorizontalTextPosition(SwingConstants.CENTER);
-            button.setVerticalTextPosition(SwingConstants.CENTER);
-        } else {
-            // Imagen pequeña con texto al costado
-            button.setHorizontalTextPosition(SwingConstants.RIGHT);
-            button.setVerticalTextPosition(SwingConstants.CENTER);
-        }
-
-        button.setFont(cargarFuentePixel(fontSize));
-        button.setForeground(Color.BLACK);
-        button.setContentAreaFilled(false);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setOpaque(false);
-        button.setBounds(x, y, width, height);
-
-        if (alineado) {
-            button.setHorizontalAlignment(SwingConstants.LEFT);
-            button.setMargin(new Insets(0, 20, 0, 0));
-        }
-
-        // Efecto hover para cambiar el color del texto
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent evt) {
-                button.setForeground(Color.WHITE);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent evt) {
-                button.setForeground(Color.BLACK);
-            }
-        });
-
-        return button;
-    }
-    private JButton createfillImageButton(String text, String imagePath, int x, int y, int width, int height, int fontSize, boolean alineado, boolean cubrirBoton) {
-        String formattedText = "<html>" + text.replace("\n", "<br>") + "</html>";
-
-        JButton button = new JButton(formattedText) {
-            Image image = new ImageIcon(imagePath).getImage();
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                // 1. Fondo transparente
-                Graphics2D g2d = (Graphics2D) g.create();
-                g2d.setComposite(AlphaComposite.SrcOver.derive(0.0f)); // Fondo 100% transparente
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-                g2d.dispose();
-
-                // 2. Dibujar imagen de fondo (solo si cubrirBoton = true)
-                if (cubrirBoton && image != null) {
-                    g.drawImage(image, 0, 0, getWidth(), getHeight(), this);
-                }
-                super.paintComponent(g); // Dibuja el texto
-            }
-        };
-
-        // 3. Configuración base del botón
-        button.setFont(cargarFuentePixel(fontSize));
-        button.setForeground(Color.BLACK);
-        button.setBounds(x, y, width, height);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setOpaque(false); // Importante para transparencia
-
-        // 4. Margen interno (para evitar texto pegado)
-        int marginLeft = alineado ? 15 : 5; // 15px si está alineado, 5px si no
-        button.setMargin(new Insets(5, marginLeft, 5, 5)); // Arriba, Izq, Abajo, Der
-
-        // 5. Comportamiento según cubrirBoton
-        if (!cubrirBoton) {
-            ImageIcon icon = new ImageIcon(
-                    new ImageIcon(imagePath).getImage().getScaledInstance(50, 50, Image.SCALE_SMOOTH)
-            );
-            button.setIcon(icon);
-            button.setHorizontalTextPosition(SwingConstants.RIGHT);
-            button.setVerticalTextPosition(SwingConstants.CENTER);
-            button.setIconTextGap(10); // Espacio entre ícono y texto
-        } else {
-            button.setHorizontalTextPosition(SwingConstants.CENTER);
-            button.setVerticalTextPosition(SwingConstants.CENTER);
-        }
-
-        // 6. Efecto hover (opcional)
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent evt) {
-                button.setForeground(Color.WHITE);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent evt) {
-                button.setForeground(Color.BLACK);
-            }
-        });
-
-        return button;
     }
     private boolean booleanInput(String m){
         int respuesta = JOptionPane.showConfirmDialog(
@@ -1800,44 +1608,13 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 JOptionPane.QUESTION_MESSAGE,
                 new ImageIcon("resources/icon/confirmationGif.gif")
         );
-        boolean resultado = (respuesta == JOptionPane.YES_OPTION);
-        return resultado;
-    }
-    private static Font cargarFuentePixel(float tamaño) {
-        try {
-            Font fuenteBase = Font.createFont(Font.TRUETYPE_FONT,
-                    new File("resources/fonts/themevck-text.ttf"));
-            Font fuenteNegrita = fuenteBase.deriveFont(Font.BOLD, tamaño);
-            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-            ge.registerFont(fuenteNegrita);
-            return fuenteNegrita;
-
-        } catch (FontFormatException | IOException e) {
-            Log.record(e);
-            return new Font("Monospaced", Font.BOLD, (int)tamaño);
-        }
-    }
-    private void reproducirSonido(String sonido) {
-        try {
-            AudioInputStream audioInput = AudioSystem.getAudioInputStream(new File(songs+sonido));
-            clip = AudioSystem.getClip();
-            clip.open(audioInput);
-            clip.loop(Clip.LOOP_CONTINUOUSLY); // Repetir mientras el panel esté visible
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    private void detenerSonido() {
-        if (clip != null && clip.isRunning()) {
-            clip.stop();
-            clip.close();
-        }
+        return respuesta == JOptionPane.YES_OPTION;
     }
     //Metodos de los botones.
     private void actualizarTextoDificultad() {
 
-        random = !random;
-        stastRandomButton.setText(random ? "Stat Aleatorios" : "Stat Base");
+        final boolean randomStats = setup.toggleRandomStats();
+        stastRandomButton.setText(randomStats ? "Stat Aleatorios" : "Stat Base");
 
         // Efecto visual de cambio
         Timer timer = new Timer(50, null);
@@ -1851,7 +1628,7 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                     opacity -= 0.1f;
                     if (opacity <= 0) {
                         fadingOut = false;
-                        stastRandomButton.setText(random ? "Stat Aleatorios" : "Stat Base");
+                        stastRandomButton.setText(randomStats ? "Stat Aleatorios" : "Stat Base");
                     }
                 } else {
                     opacity += 0.1f;
@@ -1877,114 +1654,72 @@ public class POOBkemonGUI extends JFrame implements Auxiliar {
                 opciones,
                 opciones[0]
         );
-        switch (respuesta) {
-            case 0: return opciones[0];
-            case 1: return opciones[1];
-            case 2: return opciones[2];
-            case 3: return opciones[3];
-            default: return opciones[0];
-        }
+        // Si se cierra el diálogo (-1) se usa la primera opción.
+        return opciones[respuesta >= 0 && respuesta < opciones.length ? respuesta : 0];
     }
     private void startNewGame() {
         refresh(gameMode);
     }
+    private static final String SAVE_EXTENSION = "poob";
+
+    private JFileChooser createSaveFileChooser() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Partida POOBkemon (*." + SAVE_EXTENSION + ")", SAVE_EXTENSION));
+        return chooser;
+    }
+
     private void openGame() {
-        JFileChooser fileChooser = new JFileChooser();
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-            String fileName = selectedFile.getName();
-            try {
-                game = game.open(selectedFile);
-                startBattle(game);
-            } catch (POOBkemonException e){
-                System.out.println("Exepción" + e.getMessage());
-            }
+        JFileChooser chooser = createSaveFileChooser();
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            game = POOBkemon.open(chooser.getSelectedFile());
+            startBattle(game);
+        } catch (POOBkemonException e) {
+            Log.record(e);
+            Dialogs.error("No se pudo abrir la partida", e.getMessage());
         }
     }
 
     private void saveGame() {
-        JFileChooser fileChooser = new JFileChooser();
-        int result = fileChooser.showSaveDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-            String fileName = selectedFile.getName();
-            try{
-                game.save(selectedFile);
-            } catch (POOBkemonException e){
-                System.out.println("Exepción" + e.getMessage());
-            }
+        if (game == null || game.getTeams() == null || game.finishBattle()) {
+            Dialogs.info(this, "Guardar partida", "No hay una batalla en curso para guardar.");
+            return;
+        }
+        JFileChooser chooser = createSaveFileChooser();
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File target = chooser.getSelectedFile();
+        if (!target.getName().toLowerCase().endsWith("." + SAVE_EXTENSION)) {
+            target = new File(target.getParentFile(), target.getName() + "." + SAVE_EXTENSION);
+        }
+        if (target.exists() && !Dialogs.confirm(this, "Guardar partida",
+                "El archivo \"" + target.getName() + "\" ya existe. ¿Deseas reemplazarlo?", null)) {
+            return;
+        }
+        try {
+            game.save(target);
+        } catch (POOBkemonException e) {
+            Log.record(e);
+            Dialogs.error("No se pudo guardar la partida", e.getMessage());
         }
     }
-    private void confirmExit(){
-        int option = JOptionPane.showConfirmDialog(
-                this,
-                "¿Estás seguro de que quieres salir?",
-                "Confirmar salida",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE,new ImageIcon(EXIT_ICON));
 
-        if (option == JOptionPane.YES_OPTION) {
+    private void confirmExit() {
+        if (Dialogs.confirm(this, "Confirmar salida", "¿Estás seguro de que quieres salir?",
+                Assets.icon(EXIT_ICON))) {
+            sound.stop();
+            dispose();
             System.exit(0);
         }
-    }
-    //
-    private void createDataForGame(){
-        createPokemones();
-        createMoves();
-        prepareItem();
-    }
-    private void createPokemones(){
-        ArrayList<Integer> pokemones1 = new ArrayList<>();
-        ArrayList<Integer> pokemones2 = new ArrayList<>();
-        for(int i = 0; i<6; i++) {
-            pokemones1.add(getNumerRandom(386));
-            pokemones2.add(getNumerRandom(386));
-        }
-        assingPokemon(pokemones1, pokemones2);
-    }
-    private void createMoves(){
-        ArrayList<Integer> pokemons1_moves = new ArrayList<>();
-        ArrayList<Integer> pokemons2_moves = new ArrayList<>();
-        for(int i = 0; i<24; i++) {
-            pokemons1_moves.add(getNumerRandom(354));
-            pokemons2_moves.add(getNumerRandom(354));
-        }
-
-        assingMoves(pokemons1_moves, pokemons2_moves);
-    }
-    private void prepareItem(){
-        for(int i =0 ; i<2; i++) {
-            String[][] items ={{"Potion", "0","25"},{"Potion", "0","50"},{"Potion", "0","100"},{"Revive", "0"}};
-            this.items.put(this.players.get(i), items);
-        }
-    }
-    public static int getNumerRandom(int limit) {
-        Random random = new Random();
-        return random.nextInt(limit) + 1;
-    }
-    private void createTrainers(String trainer1, String trainer2){
-        this.players.clear();
-        players.add(trainer1);
-        players.add(trainer2);
-    }
-    private void assingPokemon(ArrayList<Integer> trainer1, ArrayList<Integer> trainer2){
-        pokemones.put(players.get(0),trainer1);
-        pokemones.put(players.get(1),trainer2);
-    }
-    private void assingMoves(ArrayList<Integer> trainer1, ArrayList<Integer> trainer2){
-        moves.put(players.get(0),trainer1);
-        moves.put(players.get(1),trainer2);
-    }
-    private void assingItem(int player, int item){
-        String[][] items = this.items.get(players.get(player));
-        items[item][1] = String.valueOf(Integer.parseInt(items[item][1])+1);
     }
     //
 
     //
     public static void main(String[] args) {
-        POOBkemonGUI ventana = new POOBkemonGUI();
-        ventana.setVisible(true);
+        SwingUtilities.invokeLater(() -> new POOBkemonGUI().setVisible(true));
     }
 }

@@ -1,135 +1,120 @@
 package persistence;
 
-import domain.Log;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Catálogo de movimientos.
+ * Columnas: id_0, name_1, description_2, type_3, damage_class_4, power_5, accuracy_6, pp_7,
+ * direccion_8, consequence_9, probabilityStatus_10.
+ */
 public class MovesRepository {
-    private static final String ATACKS_ARCHIVE = "resources/csv/movimientos.csv";
-    private static TreeMap<Integer, String[]> movimientos = new TreeMap<>();
+
+    private static final String ATTACKS_ARCHIVE = "resources/csv/movimientos.csv";
+    private static final int COL_NAME = 1;
+    private static final int COL_TYPE = 3;
+    private static final int COL_DAMAGE_CLASS = 4;
+    private static final int COL_POWER = 5;
+    private static final int COL_PP = 7;
+
+    private static volatile Map<Integer, String[]> moves;
 
     public MovesRepository() {
-        List<String> pokemonsIput = null;
-        try {
-            pokemonsIput = Files.readAllLines(Paths.get(ATACKS_ARCHIVE));
-        } catch (IOException e) {
-            Log.record(e);
-        }
+        load();
+    }
 
-        for (int i = 1; i < pokemonsIput.size(); i++) {
-            String[] valores = splitCSVLine(pokemonsIput.get(i));
-            this.movimientos.put(Integer.parseInt(valores[0]), valores);
+    private static Map<Integer, String[]> load() {
+        Map<Integer, String[]> local = moves;
+        if (local == null) {
+            synchronized (MovesRepository.class) {
+                local = moves;
+                if (local == null) {
+                    local = new TreeMap<>();
+                    for (String[] row : CsvReader.readRows(ATTACKS_ARCHIVE)) {
+                        local.put(Integer.parseInt(row[0]), row);
+                    }
+                    moves = local;
+                }
+            }
         }
+        return local;
     }
 
     public ArrayList<String[]> getMoves() {
-        ArrayList<String[]> moves = new ArrayList<>();
-        for (String[] s : this.movimientos.values()) {
-            moves.add(s);
+        ArrayList<String[]> copy = new ArrayList<>();
+        for (String[] row : load().values()) {
+            copy.add(row.clone());
         }
-        return moves;
+        return copy;
     }
 
+    /**
+     * @return copia de la fila del movimiento, o {@code null} si no existe
+     */
     public String[] getAttacksId(int id) {
-        if (movimientos.containsKey(id)) {
-            return movimientos.get(id);
-        } else {
-            return null;
-        }
+        String[] row = load().get(id);
+        return row == null ? null : row.clone();
     }
 
+    /**
+     * @return "001 Nombre - Tipo - Clase" o {@code null} si el movimiento no existe
+     */
     public String getAttackId(int id) {
-        if (movimientos.containsKey(id)) {
-            String[] attack = getAttacksId(id);
-            if (attack[0].length() == 1) {
-                attack[0] = "00" + attack[0];
-            } else if (attack[0].length() == 2) {
-                attack[0] = "0" + attack[0];
-            }
-            return attack[0] + " " + attack[1] + " - " + attack[3] + " - " + attack[4];
-        } else {
+        String[] attack = load().get(id);
+        if (attack == null) {
             return null;
         }
+        return String.format("%03d", id) + " " + attack[COL_NAME] + " - " + attack[COL_TYPE]
+                + " - " + attack[COL_DAMAGE_CLASS];
     }
 
     public String getAttackToChoose(int id) {
-        if (movimientos.containsKey(id)) {
-            String[] attack = getAttacksId(id);
-            return attack[0] + " | " + attack[1] + "\n" +"T."+ attack[3] + " | C." + attack[4]+ "\n" +"PD "+attack[5]+" | PP "+attack[7];
-        } else {
+        String[] attack = load().get(id);
+        if (attack == null) {
             return null;
         }
+        return attack[0] + " | " + attack[COL_NAME] + "\n"
+                + "T." + attack[COL_TYPE] + " | C." + attack[COL_DAMAGE_CLASS] + "\n"
+                + "PD " + attack[COL_POWER] + " | PP " + attack[COL_PP];
     }
+
     public String getAttackType(int id) {
-        if (movimientos.containsKey(id)) {
-            String[] attack = getAttacksId(id);
-            return attack[3];
-        } else {
+        String[] attack = load().get(id);
+        return attack == null ? null : attack[COL_TYPE];
+    }
+
+    /**
+     * @return {tipo, poder}; el poder es "0" cuando el movimiento no hace daño directo
+     */
+    public String[] getAttackDamageAndType(int id) {
+        String[] attack = load().get(id);
+        if (attack == null) {
             return null;
         }
+        String power = attack[COL_POWER];
+        return new String[]{attack[COL_TYPE], (power == null || power.isEmpty()) ? "0" : power};
     }
 
-    private static String[] splitCSVLine(String line) {
-        List<String> values = new ArrayList<>();
-        boolean inQuotes = false;
-        StringBuilder current = new StringBuilder();
-
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-
-            if (c == '\"') {
-                inQuotes = !inQuotes;
-            } else if (c == ',' && !inQuotes) {
-                values.add(current.toString().trim().replaceAll("^\"|\"$", ""));
-                current.setLength(0);
-            } else {
-                current.append(c);
+    /**
+     * Movimientos que un Pokémon puede aprender: los de alguno de sus tipos y los de tipo Normal.
+     */
+    public ArrayList<String[]> getCompatibleAttacks(int pokemonId) {
+        ArrayList<String[]> compatible = new ArrayList<>();
+        String[] pokemon = new PokemonRepository().getPokemonId(pokemonId);
+        if (pokemon == null) {
+            return compatible;
+        }
+        String primaryType = pokemon[2];
+        String secondaryType = pokemon[3].isEmpty() ? primaryType : pokemon[3];
+        for (String[] attack : load().values()) {
+            String attackType = attack[COL_TYPE];
+            if (primaryType.equalsIgnoreCase(attackType)
+                    || secondaryType.equalsIgnoreCase(attackType)
+                    || "Normal".equalsIgnoreCase(attackType)) {
+                compatible.add(attack.clone());
             }
         }
-
-        values.add(current.toString().trim().replaceAll("^\"|\"$", ""));
-
-        return values.toArray(new String[0]);
-    }
-    public String[] getAttackDamageAndType(int id) {
-         if (!movimientos.containsKey(id)) return null;
-         String[] ataque = movimientos.get(id);
-         String tipo = ataque[3];
-         String poder = ataque[5];
-         if (poder == null || poder.isEmpty()) {
-             poder = "0";
-         }
-         String[] info = {tipo,poder};
-         return info;
-     }
-
-     //metodo para maquina (Experta)
-     public ArrayList<String[]> getCompatibleAttacks(int pokemonId) {
-        ArrayList<String[]> compatibleAttacks = new ArrayList<>();
-        PokemonRepository pokemonRepo = new PokemonRepository();
-
-        String[] pokemonInfo = pokemonRepo.getPokemonId(pokemonId);
-        if (pokemonInfo == null) return compatibleAttacks;
-        String pokemonType = pokemonInfo[2];
-        String pokemonType2 = pokemonInfo[3] == "" ? pokemonType : pokemonInfo[3];
-        for (Map.Entry<Integer, String[]> entry : movimientos.entrySet()) {
-            String[] attack = entry.getValue();
-            String attackType = attack[3];
-            try {
-                if (pokemonType.equalsIgnoreCase(attackType) || pokemonType2.equalsIgnoreCase(attackType) || attackType.equalsIgnoreCase("Normal")) {
-                    compatibleAttacks.add(attack);
-                }
-            } catch (Exception e) {
-                compatibleAttacks.add(attack);
-                Log.record(e);
-            }
-        }
-        return compatibleAttacks;
+        return compatible;
     }
 }

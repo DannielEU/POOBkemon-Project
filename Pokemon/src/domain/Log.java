@@ -1,38 +1,54 @@
-package domain;    
+package domain;
 
-import java.util.logging.Logger;
+import java.io.IOException;
 import java.util.logging.FileHandler;
-import java.util.logging.SimpleFormatter;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
- * The Log class provides a utility for recording exception messages to a log file.
- * It uses Java's logging framework to log exceptions at the SEVERE level to a file
- * named after the static field `nombre`. The log file is appended with each new log entry.
+ * Registro centralizado de excepciones en el archivo {@code <nombre>.log} (modo append).
+ * El manejador de archivo se crea una sola vez; registrar un error nunca termina la aplicación.
  */
-public class Log{
-    public static String nombre="POOBkemon";
+public final class Log {
+
+    public static String nombre = "POOBkemon";
+
+    private static Logger logger;
+    private static String loggerFile;
+
+    private Log() {
+    }
 
     /**
-     * Records the provided exception information to a log file.
-     * The log file is named using the static field `nombre` and
-     * is appended with log entries. The method logs the exception
-     * at the SEVERE level using Java's logging framework.
+     * Registra la excepción con nivel SEVERE.
      *
-     * @param e the exception to be recorded in the log file
+     * @param e excepción a registrar
      */
-    public static void record(Exception e){
-        try{
-            Logger logger=Logger.getLogger(nombre);
-            logger.setUseParentHandlers(false);
-            FileHandler file=new FileHandler(nombre+".log",true);
-            file.setFormatter(new SimpleFormatter());
-            logger.addHandler(file);
-            logger.log(Level.SEVERE,e.toString(),e);
-            file.close();
-        }catch (Exception oe){
-            oe.printStackTrace();
-            System.exit(0);
+    public static synchronized void record(Exception e) {
+        try {
+            currentLogger().log(Level.SEVERE, e.toString(), e);
+        } catch (IOException | SecurityException ioe) {
+            // Último recurso: el registro no puede ser causa de que la aplicación falle.
+            System.err.println("No fue posible escribir en el log: " + ioe.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    private static Logger currentLogger() throws IOException {
+        if (logger == null || !nombre.equals(loggerFile)) {
+            Logger created = Logger.getLogger(nombre);
+            created.setUseParentHandlers(false);
+            for (var handler : created.getHandlers()) {
+                handler.close();
+                created.removeHandler(handler);
+            }
+            FileHandler file = new FileHandler(nombre + ".log", true);
+            file.setFormatter(new SimpleFormatter());
+            created.addHandler(file);
+            logger = created;
+            loggerFile = nombre;
+        }
+        return logger;
     }
 }

@@ -42,7 +42,7 @@ public class Pokemon implements Serializable {
 	public int ivs;
 
 	// Battle modifiers
-	private static boolean random;
+	private boolean random;
 	private static int attackId = 0;
 	private ArrayList<Attack> attacks;
 	private ArrayList<State> states;

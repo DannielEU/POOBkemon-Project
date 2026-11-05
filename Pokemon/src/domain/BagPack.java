@@ -4,53 +4,42 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
- * Represents a backpack that holds a collection of items.
- * This class allows access and manipulation of items stored within the backpack.
+ * Mochila de un entrenador: colección de ítems consultables por nombre.
  */
 public class BagPack implements Serializable {
-	private ArrayList<Item> items;
+
+	private final ArrayList<Item> items;
 
 	/**
-	 * Constructs a BagPack object with a provided list of items.
-	 *
-	 * @param items the list of items to be stored in the backpack
+	 * @param items ítems iniciales (se copia la lista)
 	 */
 	public BagPack(ArrayList<Item> items){
-		this.items = new ArrayList<Item>(items);
+		this.items = new ArrayList<>(items);
 	}
 
 	/**
-	 * Retrieves the items stored*/
-	private Item[] showItems(){
+	 * Busca un ítem por su nombre exacto.
+	 *
+	 * @param itemName nombre del ítem
+	 * @return el ítem, o {@code null} si la mochila no lo tiene
+	 */
+	public Item getItem(String itemName) {
+		for (Item item : items) {
+			if (item.getName().equals(itemName)) {
+				return item;
+			}
+		}
 		return null;
 	}
 
 	/**
-	 * Retrieves an item from the list of stored items based on its name.
-	 *
-	 * @param itemName*/
-	public Item getItem(String itemName) {
-		Item item = null;
-		for(Item i: items){
-			System.out.println(i.getName());
-			if(i.getName().equals(itemName)) item = i;
-		}
-		return item;
-	}
-
-	/**
-	 * Retrieves the item information stored in the backpack as a two-dimensional array.
-	 * Each sub-array contains details about an item, with specific properties
-	 * defined and returned by the implementation of the {@link Item#getItemInfo()} method.
-	 *
-	 * @return a two-dimensional array of Strings where each sub-array represents
-	 *         the properties of an item in the backpack.
+	 * Información de los ítems: cada fila es {nombre, cantidad}.
 	 */
 	public String[][] getItems(){
-		String[][] items = new String[this.items.size()][2];
-		for (int i = 0; i<this.items.size(); i++ ){
-			items[i] = this.items.get(i).getItemInfo();
+		String[][] info = new String[items.size()][];
+		for (int i = 0; i < items.size(); i++) {
+			info[i] = items.get(i).getItemInfo();
 		}
-		return  items;
+		return info;
 	}
 }
